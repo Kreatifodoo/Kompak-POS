@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flutter-run",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run"],
+      "port": 0
+    },
+    {
+      "name": "build-runner-watch",
+      "runtimeExecutable": "dart",
+      "runtimeArgs": ["run", "build_runner", "watch", "--delete-conflicting-outputs"],
+      "port": 0
+    }
+  ]
+}

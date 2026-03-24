@@ -1,0 +1,89 @@
+name: kompak_pos
+description: "Enterprise-grade offline-first POS for Android & Web retail stores."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Database (offline-first, web+mobile)
+  drift: ^2.22.1
+  drift_flutter: ^0.2.4
+  # sqlite3 & sqlite3_flutter_libs pulled in by drift_flutter automatically
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Serialization / Data Classes
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Barcode Scanning
+  mobile_scanner: ^6.0.5
+
+  # Thermal Printing (ESC/POS via Bluetooth)
+  print_bluetooth_thermal: ^1.1.1
+  flutter_esc_pos_utils: ^1.0.1
+
+  # Background Jobs
+  workmanager: ^0.7.0
+
+  # Connectivity
+  connectivity_plus: ^6.1.4
+
+  # Networking (REST API connector)
+  dio: ^5.7.0
+
+  # Image Picker
+  image_picker: ^1.1.2
+
+  # UI Utilities
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  intl: ^0.20.2
+  google_fonts: ^6.2.1
+  flutter_slidable: ^3.1.1
+
+  # Utilities
+  uuid: ^4.5.1
+  logger: ^2.5.0
+  shared_preferences: ^2.3.5
+  permission_handler: ^11.3.1
+  collection: ^1.19.1
+  image: ^4.8.0
+  crypto: ^3.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Code Generation
+  build_runner: ^2.4.14
+  drift_dev: ^2.22.1
+  freezed: ^2.5.7
+  json_serializable: ^6.9.4
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "icon kompak Apps/Frame 24.png"
+  adaptive_icon_background: "#1990B3"
+  adaptive_icon_foreground: "icon kompak Apps/Frame 24.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
