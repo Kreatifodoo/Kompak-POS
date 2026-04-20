@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mengunduh Kompak POS…</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:#f0f4f8;font-family:Arial,sans-serif;color:#1e293b;padding:24px;text-align:center}
+  .card{background:#fff;border-radius:12px;padding:36px 28px;max-width:360px;width:100%;
+    box-shadow:0 4px 20px rgba(0,0,0,.08)}
+  .logo{font-size:15px;font-weight:700;color:#2563eb;margin-bottom:24px;letter-spacing:.5px}
+  .spinner{width:56px;height:56px;border:5px solid #e2e8f0;border-top-color:#2563eb;
+    border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 24px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h2{font-size:17px;font-weight:700;margin-bottom:8px;color:#0f172a}
+  p{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px}
+  .bar-wrap{background:#e2e8f0;border-radius:99px;height:6px;margin-bottom:20px;overflow:hidden}
+  .bar{height:6px;background:#2563eb;border-radius:99px;width:0%;animation:fill 3s ease-out forwards}
+  @keyframes fill{0%{width:0%}60%{width:70%}90%{width:92%}100%{width:100%}}
+  a.btn{display:inline-block;margin-top:4px;font-size:14px;color:#fff;background:#2563eb;
+    border-radius:8px;padding:12px 28px;text-decoration:none;font-weight:600}
+  .note{font-size:11px;color:#94a3b8;margin-top:16px;line-height:1.6}
+  .error{color:#dc2626;font-size:13px;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">KOMPAK POS</div>
+  <div class="spinner"></div>
+  <h2>Menyiapkan unduhan…</h2>
+  <p>File APK sedang disiapkan.<br>Unduhan akan dimulai otomatis.</p>
+  <div class="bar-wrap"><div class="bar"></div></div>
+  <a class="btn" id="btn" href="#">Unduh Sekarang</a>
+  <p class="note">Jika tidak otomatis dimulai,<br>klik tombol di atas.</p>
+  <p class="error" id="err">Link tidak valid. Hubungi admin.</p>
+</div>
+<script>
+  var u = new URLSearchParams(location.search).get('url');
+  if (u) {
+    document.getElementById('btn').href = u;
+    setTimeout(function(){ window.location.href = u; }, 2500);
+  } else {
+    document.getElementById('btn').style.display = 'none';
+    document.getElementById('err').style.display = 'block';
+    document.querySelector('.spinner').style.display = 'none';
+    document.querySelector('.bar-wrap').style.display = 'none';
+    document.querySelector('h2').textContent = 'Link tidak valid';
+    document.querySelector('p').textContent = 'Hubungi admin untuk mendapatkan link baru.';
+  }
+</script>
+</body>
+</html>
