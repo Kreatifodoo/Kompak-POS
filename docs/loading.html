@@ -23,31 +23,45 @@
     border-radius:8px;padding:12px 28px;text-decoration:none;font-weight:600}
   .note{font-size:11px;color:#94a3b8;margin-top:16px;line-height:1.6}
   .error{color:#dc2626;font-size:13px;margin-top:12px;display:none}
+  .check{width:56px;height:56px;border-radius:50%;background:#22c55e;display:none;
+    align-items:center;justify-content:center;margin:0 auto 24px;font-size:28px}
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">KOMPAK POS</div>
-  <div class="spinner"></div>
-  <h2>Menyiapkan unduhan…</h2>
-  <p>File APK sedang disiapkan.<br>Unduhan akan dimulai otomatis.</p>
-  <div class="bar-wrap"><div class="bar"></div></div>
+  <div class="spinner" id="spinner"></div>
+  <div class="check" id="check">✓</div>
+  <h2 id="title">Menyiapkan unduhan…</h2>
+  <p id="desc">File APK sedang disiapkan.<br>Unduhan akan dimulai otomatis.</p>
+  <div class="bar-wrap" id="bar-wrap"><div class="bar"></div></div>
   <a class="btn" id="btn" href="#">Unduh Sekarang</a>
-  <p class="note">Jika tidak otomatis dimulai,<br>klik tombol di atas.</p>
+  <p class="note" id="note">Jika tidak otomatis dimulai,<br>klik tombol di atas.</p>
   <p class="error" id="err">Link tidak valid. Hubungi admin.</p>
 </div>
 <script>
   var u = new URLSearchParams(location.search).get('url');
   if (u) {
     document.getElementById('btn').href = u;
-    setTimeout(function(){ window.location.href = u; }, 2500);
+    setTimeout(function(){
+      // Picu download
+      window.location.href = u;
+      // Ganti tampilan ke state sukses
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('bar-wrap').style.display = 'none';
+      document.getElementById('check').style.display = 'flex';
+      document.getElementById('title').textContent = 'Unduhan dimulai!';
+      document.getElementById('desc').innerHTML = 'Tap <strong>Download</strong> pada dialog di atas.<br>Lalu install APK dari folder <strong>Downloads</strong>.';
+      document.getElementById('btn').textContent = 'Unduh Lagi';
+      document.getElementById('note').textContent = 'Setelah install, masukkan kode aktivasi yang dikirim via email.';
+    }, 2500);
   } else {
     document.getElementById('btn').style.display = 'none';
     document.getElementById('err').style.display = 'block';
-    document.querySelector('.spinner').style.display = 'none';
-    document.querySelector('.bar-wrap').style.display = 'none';
-    document.querySelector('h2').textContent = 'Link tidak valid';
-    document.querySelector('p').textContent = 'Hubungi admin untuk mendapatkan link baru.';
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('bar-wrap').style.display = 'none';
+    document.getElementById('title').textContent = 'Link tidak valid';
+    document.getElementById('desc').textContent = 'Hubungi admin untuk mendapatkan link baru.';
   }
 </script>
 </body>
