@@ -30,10 +30,16 @@ final sessionReportProvider =
   return service.generateReport(sessionId);
 });
 
-/// Session history list
+/// Session history list (filtered by terminal + branch)
 final sessionHistoryProvider = FutureProvider<List<PosSession>>((ref) async {
   final service = ref.read(posSessionServiceProvider);
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) return [];
-  return service.getSessionHistory(storeId);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
+  return service.getSessionHistoryFiltered(
+    storeId,
+    terminalId: terminalId,
+    storeIds: storeIds,
+  );
 });

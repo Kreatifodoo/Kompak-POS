@@ -24,14 +24,16 @@ class InventoryDao extends DatabaseAccessor<AppDatabase>
           .getSingleOrNull();
 
   Future<void> decrementStock(String productId, double qty, {String? userId}) async {
+    // BUG-SIT-002 FIX: Read first to capture previousQty for movement log,
+    // then use atomic MAX(0, quantity - qty) UPDATE to prevent overselling
+    // even if called outside a transaction.
     final inv = await getForProduct(productId);
     if (inv != null) {
+      await customStatement(
+        'UPDATE inventory SET quantity = MAX(0, quantity - ?), updated_at = ? WHERE product_id = ?',
+        [qty, DateTime.now().toIso8601String(), productId],
+      );
       final newQty = math.max(0.0, inv.quantity - qty);
-      await (update(inventory)..where((i) => i.productId.equals(productId)))
-          .write(InventoryCompanion(
-        quantity: Value(newQty),
-        updatedAt: Value(DateTime.now()),
-      ));
       await attachedDatabase.inventoryMovementDao.insertMovement(
         InventoryMovementsCompanion.insert(
           id: _uuid.v4(),

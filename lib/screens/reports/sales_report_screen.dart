@@ -13,6 +13,8 @@ import '../../models/applied_promotion_model.dart';
 import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/orders/order_providers.dart';
+import '../../widgets/common/terminal_filter_dropdown.dart';
+import '../../widgets/common/branch_filter_dropdown.dart';
 
 class SalesReportScreen extends ConsumerStatefulWidget {
   const SalesReportScreen({super.key});
@@ -75,6 +77,19 @@ class _SalesReportScreenState extends ConsumerState<SalesReportScreen> {
                     });
                   }
                 }),
+              ],
+            ),
+          ),
+          // Terminal & branch filter
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            color: Colors.white,
+            child: const Row(
+              children: [
+                BranchFilterDropdown(),
+                SizedBox(width: 8),
+                TerminalFilterDropdown(),
               ],
             ),
           ),

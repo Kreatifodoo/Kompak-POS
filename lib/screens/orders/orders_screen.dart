@@ -13,6 +13,8 @@ import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/customer/customer_providers.dart';
 import '../../modules/orders/order_providers.dart';
+import '../../widgets/common/terminal_filter_dropdown.dart';
+import '../../widgets/common/branch_filter_dropdown.dart';
 
 /// Provider to resolve cashier name from ID.
 final _cashierNameProvider =
@@ -75,6 +77,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 isDense: true,
               ),
               style: AppTextStyles.bodyMedium,
+            ),
+          ),
+
+          // Terminal & branch filter
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+            color: Colors.white,
+            child: const Row(
+              children: [
+                BranchFilterDropdown(),
+                SizedBox(width: 8),
+                TerminalFilterDropdown(),
+              ],
             ),
           ),
 

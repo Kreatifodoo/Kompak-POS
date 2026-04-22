@@ -21,6 +21,14 @@ class TerminalService {
 
   Future<Terminal?> getById(String id) => db.terminalDao.getById(id);
 
+  /// Get all terminals across multiple stores (HQ consolidated view)
+  Future<List<Terminal>> getByStoreIds(List<String> storeIds) =>
+      db.terminalDao.getByStoreIds(storeIds);
+
+  /// Get active terminals across multiple stores
+  Future<List<Terminal>> getActiveByStoreIds(List<String> storeIds) =>
+      db.terminalDao.getActiveByStoreIds(storeIds);
+
   // ── CRUD ──
 
   Future<String> createTerminal({

@@ -809,6 +809,20 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _canAccessAttendanceMeta =
+      const VerificationMeta('canAccessAttendance');
+  @override
+  late final GeneratedColumn<bool> canAccessAttendance = GeneratedColumn<bool>(
+    'can_access_attendance',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("can_access_attendance" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -830,6 +844,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
     role,
     terminalId,
     isActive,
+    canAccessAttendance,
     createdAt,
   ];
   @override
@@ -889,6 +904,15 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('can_access_attendance')) {
+      context.handle(
+        _canAccessAttendanceMeta,
+        canAccessAttendance.isAcceptableOrUnknown(
+          data['can_access_attendance']!,
+          _canAccessAttendanceMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -937,6 +961,11 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
             DriftSqlType.bool,
             data['${effectivePrefix}is_active'],
           )!,
+      canAccessAttendance:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}can_access_attendance'],
+          )!,
       createdAt:
           attachedDatabase.typeMapping.read(
             DriftSqlType.dateTime,
@@ -959,6 +988,7 @@ class User extends DataClass implements Insertable<User> {
   final String role;
   final String? terminalId;
   final bool isActive;
+  final bool canAccessAttendance;
   final DateTime createdAt;
   const User({
     required this.id,
@@ -968,6 +998,7 @@ class User extends DataClass implements Insertable<User> {
     required this.role,
     this.terminalId,
     required this.isActive,
+    required this.canAccessAttendance,
     required this.createdAt,
   });
   @override
@@ -984,6 +1015,7 @@ class User extends DataClass implements Insertable<User> {
       map['terminal_id'] = Variable<String>(terminalId);
     }
     map['is_active'] = Variable<bool>(isActive);
+    map['can_access_attendance'] = Variable<bool>(canAccessAttendance);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1003,6 +1035,7 @@ class User extends DataClass implements Insertable<User> {
               ? const Value.absent()
               : Value(terminalId),
       isActive: Value(isActive),
+      canAccessAttendance: Value(canAccessAttendance),
       createdAt: Value(createdAt),
     );
   }
@@ -1020,6 +1053,9 @@ class User extends DataClass implements Insertable<User> {
       role: serializer.fromJson<String>(json['role']),
       terminalId: serializer.fromJson<String?>(json['terminalId']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      canAccessAttendance: serializer.fromJson<bool>(
+        json['canAccessAttendance'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -1034,6 +1070,7 @@ class User extends DataClass implements Insertable<User> {
       'role': serializer.toJson<String>(role),
       'terminalId': serializer.toJson<String?>(terminalId),
       'isActive': serializer.toJson<bool>(isActive),
+      'canAccessAttendance': serializer.toJson<bool>(canAccessAttendance),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -1046,6 +1083,7 @@ class User extends DataClass implements Insertable<User> {
     String? role,
     Value<String?> terminalId = const Value.absent(),
     bool? isActive,
+    bool? canAccessAttendance,
     DateTime? createdAt,
   }) => User(
     id: id ?? this.id,
@@ -1055,6 +1093,7 @@ class User extends DataClass implements Insertable<User> {
     role: role ?? this.role,
     terminalId: terminalId.present ? terminalId.value : this.terminalId,
     isActive: isActive ?? this.isActive,
+    canAccessAttendance: canAccessAttendance ?? this.canAccessAttendance,
     createdAt: createdAt ?? this.createdAt,
   );
   User copyWithCompanion(UsersCompanion data) {
@@ -1067,6 +1106,10 @@ class User extends DataClass implements Insertable<User> {
       terminalId:
           data.terminalId.present ? data.terminalId.value : this.terminalId,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      canAccessAttendance:
+          data.canAccessAttendance.present
+              ? data.canAccessAttendance.value
+              : this.canAccessAttendance,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -1081,6 +1124,7 @@ class User extends DataClass implements Insertable<User> {
           ..write('role: $role, ')
           ..write('terminalId: $terminalId, ')
           ..write('isActive: $isActive, ')
+          ..write('canAccessAttendance: $canAccessAttendance, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1095,6 +1139,7 @@ class User extends DataClass implements Insertable<User> {
     role,
     terminalId,
     isActive,
+    canAccessAttendance,
     createdAt,
   );
   @override
@@ -1108,6 +1153,7 @@ class User extends DataClass implements Insertable<User> {
           other.role == this.role &&
           other.terminalId == this.terminalId &&
           other.isActive == this.isActive &&
+          other.canAccessAttendance == this.canAccessAttendance &&
           other.createdAt == this.createdAt);
 }
 
@@ -1119,6 +1165,7 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<String> role;
   final Value<String?> terminalId;
   final Value<bool> isActive;
+  final Value<bool> canAccessAttendance;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const UsersCompanion({
@@ -1129,6 +1176,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.role = const Value.absent(),
     this.terminalId = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.canAccessAttendance = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1140,6 +1188,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.role = const Value.absent(),
     this.terminalId = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.canAccessAttendance = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -1153,6 +1202,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<String>? role,
     Expression<String>? terminalId,
     Expression<bool>? isActive,
+    Expression<bool>? canAccessAttendance,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1164,6 +1214,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (role != null) 'role': role,
       if (terminalId != null) 'terminal_id': terminalId,
       if (isActive != null) 'is_active': isActive,
+      if (canAccessAttendance != null)
+        'can_access_attendance': canAccessAttendance,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1177,6 +1229,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     Value<String>? role,
     Value<String?>? terminalId,
     Value<bool>? isActive,
+    Value<bool>? canAccessAttendance,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -1188,6 +1241,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       role: role ?? this.role,
       terminalId: terminalId ?? this.terminalId,
       isActive: isActive ?? this.isActive,
+      canAccessAttendance: canAccessAttendance ?? this.canAccessAttendance,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1217,6 +1271,9 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (canAccessAttendance.present) {
+      map['can_access_attendance'] = Variable<bool>(canAccessAttendance.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1236,6 +1293,7 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('role: $role, ')
           ..write('terminalId: $terminalId, ')
           ..write('isActive: $isActive, ')
+          ..write('canAccessAttendance: $canAccessAttendance, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -13745,6 +13803,1736 @@ class TerminalsCompanion extends UpdateCompanion<Terminal> {
   }
 }
 
+class $RolesTable extends Roles with TableInfo<$RolesTable, Role> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RolesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _storeIdMeta = const VerificationMeta(
+    'storeId',
+  );
+  @override
+  late final GeneratedColumn<String> storeId = GeneratedColumn<String>(
+    'store_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSystemMeta = const VerificationMeta(
+    'isSystem',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
+    'is_system',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    storeId,
+    name,
+    description,
+    isSystem,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'roles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Role> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('store_id')) {
+      context.handle(
+        _storeIdMeta,
+        storeId.isAcceptableOrUnknown(data['store_id']!, _storeIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_system')) {
+      context.handle(
+        _isSystemMeta,
+        isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Role map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Role(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      storeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}store_id'],
+      ),
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      isSystem:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_system'],
+          )!,
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}created_at'],
+          )!,
+    );
+  }
+
+  @override
+  $RolesTable createAlias(String alias) {
+    return $RolesTable(attachedDatabase, alias);
+  }
+}
+
+class Role extends DataClass implements Insertable<Role> {
+  final String id;
+  final String? storeId;
+  final String name;
+  final String? description;
+  final bool isSystem;
+  final DateTime createdAt;
+  const Role({
+    required this.id,
+    this.storeId,
+    required this.name,
+    this.description,
+    required this.isSystem,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || storeId != null) {
+      map['store_id'] = Variable<String>(storeId);
+    }
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['is_system'] = Variable<bool>(isSystem);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  RolesCompanion toCompanion(bool nullToAbsent) {
+    return RolesCompanion(
+      id: Value(id),
+      storeId:
+          storeId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(storeId),
+      name: Value(name),
+      description:
+          description == null && nullToAbsent
+              ? const Value.absent()
+              : Value(description),
+      isSystem: Value(isSystem),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Role.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Role(
+      id: serializer.fromJson<String>(json['id']),
+      storeId: serializer.fromJson<String?>(json['storeId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      isSystem: serializer.fromJson<bool>(json['isSystem']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'storeId': serializer.toJson<String?>(storeId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'isSystem': serializer.toJson<bool>(isSystem),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Role copyWith({
+    String? id,
+    Value<String?> storeId = const Value.absent(),
+    String? name,
+    Value<String?> description = const Value.absent(),
+    bool? isSystem,
+    DateTime? createdAt,
+  }) => Role(
+    id: id ?? this.id,
+    storeId: storeId.present ? storeId.value : this.storeId,
+    name: name ?? this.name,
+    description: description.present ? description.value : this.description,
+    isSystem: isSystem ?? this.isSystem,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Role copyWithCompanion(RolesCompanion data) {
+    return Role(
+      id: data.id.present ? data.id.value : this.id,
+      storeId: data.storeId.present ? data.storeId.value : this.storeId,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Role(')
+          ..write('id: $id, ')
+          ..write('storeId: $storeId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, storeId, name, description, isSystem, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Role &&
+          other.id == this.id &&
+          other.storeId == this.storeId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.isSystem == this.isSystem &&
+          other.createdAt == this.createdAt);
+}
+
+class RolesCompanion extends UpdateCompanion<Role> {
+  final Value<String> id;
+  final Value<String?> storeId;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<bool> isSystem;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const RolesCompanion({
+    this.id = const Value.absent(),
+    this.storeId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RolesCompanion.insert({
+    required String id,
+    this.storeId = const Value.absent(),
+    required String name,
+    this.description = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<Role> custom({
+    Expression<String>? id,
+    Expression<String>? storeId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<bool>? isSystem,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (storeId != null) 'store_id': storeId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (isSystem != null) 'is_system': isSystem,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RolesCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? storeId,
+    Value<String>? name,
+    Value<String?>? description,
+    Value<bool>? isSystem,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return RolesCompanion(
+      id: id ?? this.id,
+      storeId: storeId ?? this.storeId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      isSystem: isSystem ?? this.isSystem,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (storeId.present) {
+      map['store_id'] = Variable<String>(storeId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (isSystem.present) {
+      map['is_system'] = Variable<bool>(isSystem.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RolesCompanion(')
+          ..write('id: $id, ')
+          ..write('storeId: $storeId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RbacPermissionsTable extends RbacPermissions
+    with TableInfo<$RbacPermissionsTable, RbacPermission> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RbacPermissionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _moduleMeta = const VerificationMeta('module');
+  @override
+  late final GeneratedColumn<String> module = GeneratedColumn<String>(
+    'module',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, module, name, description];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'rbac_permissions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RbacPermission> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('module')) {
+      context.handle(
+        _moduleMeta,
+        module.isAcceptableOrUnknown(data['module']!, _moduleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_moduleMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RbacPermission map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RbacPermission(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      module:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}module'],
+          )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+    );
+  }
+
+  @override
+  $RbacPermissionsTable createAlias(String alias) {
+    return $RbacPermissionsTable(attachedDatabase, alias);
+  }
+}
+
+class RbacPermission extends DataClass implements Insertable<RbacPermission> {
+  final String id;
+  final String module;
+  final String name;
+  final String? description;
+  const RbacPermission({
+    required this.id,
+    required this.module,
+    required this.name,
+    this.description,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['module'] = Variable<String>(module);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    return map;
+  }
+
+  RbacPermissionsCompanion toCompanion(bool nullToAbsent) {
+    return RbacPermissionsCompanion(
+      id: Value(id),
+      module: Value(module),
+      name: Value(name),
+      description:
+          description == null && nullToAbsent
+              ? const Value.absent()
+              : Value(description),
+    );
+  }
+
+  factory RbacPermission.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RbacPermission(
+      id: serializer.fromJson<String>(json['id']),
+      module: serializer.fromJson<String>(json['module']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'module': serializer.toJson<String>(module),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+    };
+  }
+
+  RbacPermission copyWith({
+    String? id,
+    String? module,
+    String? name,
+    Value<String?> description = const Value.absent(),
+  }) => RbacPermission(
+    id: id ?? this.id,
+    module: module ?? this.module,
+    name: name ?? this.name,
+    description: description.present ? description.value : this.description,
+  );
+  RbacPermission copyWithCompanion(RbacPermissionsCompanion data) {
+    return RbacPermission(
+      id: data.id.present ? data.id.value : this.id,
+      module: data.module.present ? data.module.value : this.module,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RbacPermission(')
+          ..write('id: $id, ')
+          ..write('module: $module, ')
+          ..write('name: $name, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, module, name, description);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RbacPermission &&
+          other.id == this.id &&
+          other.module == this.module &&
+          other.name == this.name &&
+          other.description == this.description);
+}
+
+class RbacPermissionsCompanion extends UpdateCompanion<RbacPermission> {
+  final Value<String> id;
+  final Value<String> module;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<int> rowid;
+  const RbacPermissionsCompanion({
+    this.id = const Value.absent(),
+    this.module = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RbacPermissionsCompanion.insert({
+    required String id,
+    required String module,
+    required String name,
+    this.description = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       module = Value(module),
+       name = Value(name);
+  static Insertable<RbacPermission> custom({
+    Expression<String>? id,
+    Expression<String>? module,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (module != null) 'module': module,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RbacPermissionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? module,
+    Value<String>? name,
+    Value<String?>? description,
+    Value<int>? rowid,
+  }) {
+    return RbacPermissionsCompanion(
+      id: id ?? this.id,
+      module: module ?? this.module,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (module.present) {
+      map['module'] = Variable<String>(module.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RbacPermissionsCompanion(')
+          ..write('id: $id, ')
+          ..write('module: $module, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RolePermissionsTable extends RolePermissions
+    with TableInfo<$RolePermissionsTable, RolePermission> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RolePermissionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _roleIdMeta = const VerificationMeta('roleId');
+  @override
+  late final GeneratedColumn<String> roleId = GeneratedColumn<String>(
+    'role_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _permissionIdMeta = const VerificationMeta(
+    'permissionId',
+  );
+  @override
+  late final GeneratedColumn<String> permissionId = GeneratedColumn<String>(
+    'permission_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [roleId, permissionId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'role_permissions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RolePermission> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('role_id')) {
+      context.handle(
+        _roleIdMeta,
+        roleId.isAcceptableOrUnknown(data['role_id']!, _roleIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleIdMeta);
+    }
+    if (data.containsKey('permission_id')) {
+      context.handle(
+        _permissionIdMeta,
+        permissionId.isAcceptableOrUnknown(
+          data['permission_id']!,
+          _permissionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_permissionIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {roleId, permissionId};
+  @override
+  RolePermission map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RolePermission(
+      roleId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}role_id'],
+          )!,
+      permissionId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}permission_id'],
+          )!,
+    );
+  }
+
+  @override
+  $RolePermissionsTable createAlias(String alias) {
+    return $RolePermissionsTable(attachedDatabase, alias);
+  }
+}
+
+class RolePermission extends DataClass implements Insertable<RolePermission> {
+  final String roleId;
+  final String permissionId;
+  const RolePermission({required this.roleId, required this.permissionId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['role_id'] = Variable<String>(roleId);
+    map['permission_id'] = Variable<String>(permissionId);
+    return map;
+  }
+
+  RolePermissionsCompanion toCompanion(bool nullToAbsent) {
+    return RolePermissionsCompanion(
+      roleId: Value(roleId),
+      permissionId: Value(permissionId),
+    );
+  }
+
+  factory RolePermission.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RolePermission(
+      roleId: serializer.fromJson<String>(json['roleId']),
+      permissionId: serializer.fromJson<String>(json['permissionId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'roleId': serializer.toJson<String>(roleId),
+      'permissionId': serializer.toJson<String>(permissionId),
+    };
+  }
+
+  RolePermission copyWith({String? roleId, String? permissionId}) =>
+      RolePermission(
+        roleId: roleId ?? this.roleId,
+        permissionId: permissionId ?? this.permissionId,
+      );
+  RolePermission copyWithCompanion(RolePermissionsCompanion data) {
+    return RolePermission(
+      roleId: data.roleId.present ? data.roleId.value : this.roleId,
+      permissionId:
+          data.permissionId.present
+              ? data.permissionId.value
+              : this.permissionId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RolePermission(')
+          ..write('roleId: $roleId, ')
+          ..write('permissionId: $permissionId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(roleId, permissionId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RolePermission &&
+          other.roleId == this.roleId &&
+          other.permissionId == this.permissionId);
+}
+
+class RolePermissionsCompanion extends UpdateCompanion<RolePermission> {
+  final Value<String> roleId;
+  final Value<String> permissionId;
+  final Value<int> rowid;
+  const RolePermissionsCompanion({
+    this.roleId = const Value.absent(),
+    this.permissionId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RolePermissionsCompanion.insert({
+    required String roleId,
+    required String permissionId,
+    this.rowid = const Value.absent(),
+  }) : roleId = Value(roleId),
+       permissionId = Value(permissionId);
+  static Insertable<RolePermission> custom({
+    Expression<String>? roleId,
+    Expression<String>? permissionId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (roleId != null) 'role_id': roleId,
+      if (permissionId != null) 'permission_id': permissionId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RolePermissionsCompanion copyWith({
+    Value<String>? roleId,
+    Value<String>? permissionId,
+    Value<int>? rowid,
+  }) {
+    return RolePermissionsCompanion(
+      roleId: roleId ?? this.roleId,
+      permissionId: permissionId ?? this.permissionId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (roleId.present) {
+      map['role_id'] = Variable<String>(roleId.value);
+    }
+    if (permissionId.present) {
+      map['permission_id'] = Variable<String>(permissionId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RolePermissionsCompanion(')
+          ..write('roleId: $roleId, ')
+          ..write('permissionId: $permissionId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AttendancesTable extends Attendances
+    with TableInfo<$AttendancesTable, Attendance> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AttendancesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _storeIdMeta = const VerificationMeta(
+    'storeId',
+  );
+  @override
+  late final GeneratedColumn<String> storeId = GeneratedColumn<String>(
+    'store_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _terminalIdMeta = const VerificationMeta(
+    'terminalId',
+  );
+  @override
+  late final GeneratedColumn<String> terminalId = GeneratedColumn<String>(
+    'terminal_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+    'timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isMockLocationMeta = const VerificationMeta(
+    'isMockLocation',
+  );
+  @override
+  late final GeneratedColumn<bool> isMockLocation = GeneratedColumn<bool>(
+    'is_mock_location',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_mock_location" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _photoPathMeta = const VerificationMeta(
+    'photoPath',
+  );
+  @override
+  late final GeneratedColumn<String> photoPath = GeneratedColumn<String>(
+    'photo_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _telegramSentMeta = const VerificationMeta(
+    'telegramSent',
+  );
+  @override
+  late final GeneratedColumn<bool> telegramSent = GeneratedColumn<bool>(
+    'telegram_sent',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("telegram_sent" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    storeId,
+    terminalId,
+    type,
+    timestamp,
+    latitude,
+    longitude,
+    isMockLocation,
+    address,
+    photoPath,
+    telegramSent,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'attendances';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Attendance> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('store_id')) {
+      context.handle(
+        _storeIdMeta,
+        storeId.isAcceptableOrUnknown(data['store_id']!, _storeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_storeIdMeta);
+    }
+    if (data.containsKey('terminal_id')) {
+      context.handle(
+        _terminalIdMeta,
+        terminalId.isAcceptableOrUnknown(data['terminal_id']!, _terminalIdMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_latitudeMeta);
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_longitudeMeta);
+    }
+    if (data.containsKey('is_mock_location')) {
+      context.handle(
+        _isMockLocationMeta,
+        isMockLocation.isAcceptableOrUnknown(
+          data['is_mock_location']!,
+          _isMockLocationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    }
+    if (data.containsKey('photo_path')) {
+      context.handle(
+        _photoPathMeta,
+        photoPath.isAcceptableOrUnknown(data['photo_path']!, _photoPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_photoPathMeta);
+    }
+    if (data.containsKey('telegram_sent')) {
+      context.handle(
+        _telegramSentMeta,
+        telegramSent.isAcceptableOrUnknown(
+          data['telegram_sent']!,
+          _telegramSentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Attendance map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Attendance(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}id'],
+          )!,
+      userId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}user_id'],
+          )!,
+      storeId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}store_id'],
+          )!,
+      terminalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}terminal_id'],
+      ),
+      type:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}type'],
+          )!,
+      timestamp:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}timestamp'],
+          )!,
+      latitude:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}latitude'],
+          )!,
+      longitude:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}longitude'],
+          )!,
+      isMockLocation:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_mock_location'],
+          )!,
+      address:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}address'],
+          )!,
+      photoPath:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}photo_path'],
+          )!,
+      telegramSent:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}telegram_sent'],
+          )!,
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}created_at'],
+          )!,
+    );
+  }
+
+  @override
+  $AttendancesTable createAlias(String alias) {
+    return $AttendancesTable(attachedDatabase, alias);
+  }
+}
+
+class Attendance extends DataClass implements Insertable<Attendance> {
+  final String id;
+  final String userId;
+  final String storeId;
+  final String? terminalId;
+  final String type;
+  final DateTime timestamp;
+  final double latitude;
+  final double longitude;
+  final bool isMockLocation;
+  final String address;
+  final String photoPath;
+  final bool telegramSent;
+  final DateTime createdAt;
+  const Attendance({
+    required this.id,
+    required this.userId,
+    required this.storeId,
+    this.terminalId,
+    required this.type,
+    required this.timestamp,
+    required this.latitude,
+    required this.longitude,
+    required this.isMockLocation,
+    required this.address,
+    required this.photoPath,
+    required this.telegramSent,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['store_id'] = Variable<String>(storeId);
+    if (!nullToAbsent || terminalId != null) {
+      map['terminal_id'] = Variable<String>(terminalId);
+    }
+    map['type'] = Variable<String>(type);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    map['latitude'] = Variable<double>(latitude);
+    map['longitude'] = Variable<double>(longitude);
+    map['is_mock_location'] = Variable<bool>(isMockLocation);
+    map['address'] = Variable<String>(address);
+    map['photo_path'] = Variable<String>(photoPath);
+    map['telegram_sent'] = Variable<bool>(telegramSent);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AttendancesCompanion toCompanion(bool nullToAbsent) {
+    return AttendancesCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      storeId: Value(storeId),
+      terminalId:
+          terminalId == null && nullToAbsent
+              ? const Value.absent()
+              : Value(terminalId),
+      type: Value(type),
+      timestamp: Value(timestamp),
+      latitude: Value(latitude),
+      longitude: Value(longitude),
+      isMockLocation: Value(isMockLocation),
+      address: Value(address),
+      photoPath: Value(photoPath),
+      telegramSent: Value(telegramSent),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Attendance.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Attendance(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      storeId: serializer.fromJson<String>(json['storeId']),
+      terminalId: serializer.fromJson<String?>(json['terminalId']),
+      type: serializer.fromJson<String>(json['type']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      latitude: serializer.fromJson<double>(json['latitude']),
+      longitude: serializer.fromJson<double>(json['longitude']),
+      isMockLocation: serializer.fromJson<bool>(json['isMockLocation']),
+      address: serializer.fromJson<String>(json['address']),
+      photoPath: serializer.fromJson<String>(json['photoPath']),
+      telegramSent: serializer.fromJson<bool>(json['telegramSent']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'storeId': serializer.toJson<String>(storeId),
+      'terminalId': serializer.toJson<String?>(terminalId),
+      'type': serializer.toJson<String>(type),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'latitude': serializer.toJson<double>(latitude),
+      'longitude': serializer.toJson<double>(longitude),
+      'isMockLocation': serializer.toJson<bool>(isMockLocation),
+      'address': serializer.toJson<String>(address),
+      'photoPath': serializer.toJson<String>(photoPath),
+      'telegramSent': serializer.toJson<bool>(telegramSent),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Attendance copyWith({
+    String? id,
+    String? userId,
+    String? storeId,
+    Value<String?> terminalId = const Value.absent(),
+    String? type,
+    DateTime? timestamp,
+    double? latitude,
+    double? longitude,
+    bool? isMockLocation,
+    String? address,
+    String? photoPath,
+    bool? telegramSent,
+    DateTime? createdAt,
+  }) => Attendance(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    storeId: storeId ?? this.storeId,
+    terminalId: terminalId.present ? terminalId.value : this.terminalId,
+    type: type ?? this.type,
+    timestamp: timestamp ?? this.timestamp,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    isMockLocation: isMockLocation ?? this.isMockLocation,
+    address: address ?? this.address,
+    photoPath: photoPath ?? this.photoPath,
+    telegramSent: telegramSent ?? this.telegramSent,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Attendance copyWithCompanion(AttendancesCompanion data) {
+    return Attendance(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      storeId: data.storeId.present ? data.storeId.value : this.storeId,
+      terminalId:
+          data.terminalId.present ? data.terminalId.value : this.terminalId,
+      type: data.type.present ? data.type.value : this.type,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      isMockLocation:
+          data.isMockLocation.present
+              ? data.isMockLocation.value
+              : this.isMockLocation,
+      address: data.address.present ? data.address.value : this.address,
+      photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
+      telegramSent:
+          data.telegramSent.present
+              ? data.telegramSent.value
+              : this.telegramSent,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Attendance(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('storeId: $storeId, ')
+          ..write('terminalId: $terminalId, ')
+          ..write('type: $type, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('isMockLocation: $isMockLocation, ')
+          ..write('address: $address, ')
+          ..write('photoPath: $photoPath, ')
+          ..write('telegramSent: $telegramSent, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    storeId,
+    terminalId,
+    type,
+    timestamp,
+    latitude,
+    longitude,
+    isMockLocation,
+    address,
+    photoPath,
+    telegramSent,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Attendance &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.storeId == this.storeId &&
+          other.terminalId == this.terminalId &&
+          other.type == this.type &&
+          other.timestamp == this.timestamp &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.isMockLocation == this.isMockLocation &&
+          other.address == this.address &&
+          other.photoPath == this.photoPath &&
+          other.telegramSent == this.telegramSent &&
+          other.createdAt == this.createdAt);
+}
+
+class AttendancesCompanion extends UpdateCompanion<Attendance> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> storeId;
+  final Value<String?> terminalId;
+  final Value<String> type;
+  final Value<DateTime> timestamp;
+  final Value<double> latitude;
+  final Value<double> longitude;
+  final Value<bool> isMockLocation;
+  final Value<String> address;
+  final Value<String> photoPath;
+  final Value<bool> telegramSent;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AttendancesCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.storeId = const Value.absent(),
+    this.terminalId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.isMockLocation = const Value.absent(),
+    this.address = const Value.absent(),
+    this.photoPath = const Value.absent(),
+    this.telegramSent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AttendancesCompanion.insert({
+    required String id,
+    required String userId,
+    required String storeId,
+    this.terminalId = const Value.absent(),
+    required String type,
+    required DateTime timestamp,
+    required double latitude,
+    required double longitude,
+    this.isMockLocation = const Value.absent(),
+    this.address = const Value.absent(),
+    required String photoPath,
+    this.telegramSent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       userId = Value(userId),
+       storeId = Value(storeId),
+       type = Value(type),
+       timestamp = Value(timestamp),
+       latitude = Value(latitude),
+       longitude = Value(longitude),
+       photoPath = Value(photoPath);
+  static Insertable<Attendance> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? storeId,
+    Expression<String>? terminalId,
+    Expression<String>? type,
+    Expression<DateTime>? timestamp,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<bool>? isMockLocation,
+    Expression<String>? address,
+    Expression<String>? photoPath,
+    Expression<bool>? telegramSent,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (storeId != null) 'store_id': storeId,
+      if (terminalId != null) 'terminal_id': terminalId,
+      if (type != null) 'type': type,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (isMockLocation != null) 'is_mock_location': isMockLocation,
+      if (address != null) 'address': address,
+      if (photoPath != null) 'photo_path': photoPath,
+      if (telegramSent != null) 'telegram_sent': telegramSent,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AttendancesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? userId,
+    Value<String>? storeId,
+    Value<String?>? terminalId,
+    Value<String>? type,
+    Value<DateTime>? timestamp,
+    Value<double>? latitude,
+    Value<double>? longitude,
+    Value<bool>? isMockLocation,
+    Value<String>? address,
+    Value<String>? photoPath,
+    Value<bool>? telegramSent,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AttendancesCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      storeId: storeId ?? this.storeId,
+      terminalId: terminalId ?? this.terminalId,
+      type: type ?? this.type,
+      timestamp: timestamp ?? this.timestamp,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      isMockLocation: isMockLocation ?? this.isMockLocation,
+      address: address ?? this.address,
+      photoPath: photoPath ?? this.photoPath,
+      telegramSent: telegramSent ?? this.telegramSent,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (storeId.present) {
+      map['store_id'] = Variable<String>(storeId.value);
+    }
+    if (terminalId.present) {
+      map['terminal_id'] = Variable<String>(terminalId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (isMockLocation.present) {
+      map['is_mock_location'] = Variable<bool>(isMockLocation.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (photoPath.present) {
+      map['photo_path'] = Variable<String>(photoPath.value);
+    }
+    if (telegramSent.present) {
+      map['telegram_sent'] = Variable<bool>(telegramSent.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AttendancesCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('storeId: $storeId, ')
+          ..write('terminalId: $terminalId, ')
+          ..write('type: $type, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('isMockLocation: $isMockLocation, ')
+          ..write('address: $address, ')
+          ..write('photoPath: $photoPath, ')
+          ..write('telegramSent: $telegramSent, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -13774,6 +15562,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $OrderReturnsTable orderReturns = $OrderReturnsTable(this);
   late final $BomItemsTable bomItems = $BomItemsTable(this);
   late final $TerminalsTable terminals = $TerminalsTable(this);
+  late final $RolesTable roles = $RolesTable(this);
+  late final $RbacPermissionsTable rbacPermissions = $RbacPermissionsTable(
+    this,
+  );
+  late final $RolePermissionsTable rolePermissions = $RolePermissionsTable(
+    this,
+  );
+  late final $AttendancesTable attendances = $AttendancesTable(this);
   late final StoreDao storeDao = StoreDao(this as AppDatabase);
   late final UserDao userDao = UserDao(this as AppDatabase);
   late final CategoryDao categoryDao = CategoryDao(this as AppDatabase);
@@ -13799,6 +15595,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final BomDao bomDao = BomDao(this as AppDatabase);
   late final TerminalDao terminalDao = TerminalDao(this as AppDatabase);
+  late final RoleDao roleDao = RoleDao(this as AppDatabase);
+  late final RbacPermissionDao rbacPermissionDao = RbacPermissionDao(
+    this as AppDatabase,
+  );
+  late final AttendanceDao attendanceDao = AttendanceDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -13827,6 +15628,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     orderReturns,
     bomItems,
     terminals,
+    roles,
+    rbacPermissions,
+    rolePermissions,
+    attendances,
   ];
   @override
   DriftDatabaseOptions get options =>
@@ -14182,6 +15987,7 @@ typedef $$UsersTableCreateCompanionBuilder =
       Value<String> role,
       Value<String?> terminalId,
       Value<bool> isActive,
+      Value<bool> canAccessAttendance,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -14194,6 +16000,7 @@ typedef $$UsersTableUpdateCompanionBuilder =
       Value<String> role,
       Value<String?> terminalId,
       Value<bool> isActive,
+      Value<bool> canAccessAttendance,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -14238,6 +16045,11 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get canAccessAttendance => $composableBuilder(
+    column: $table.canAccessAttendance,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14291,6 +16103,11 @@ class $$UsersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get canAccessAttendance => $composableBuilder(
+    column: $table.canAccessAttendance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14328,6 +16145,11 @@ class $$UsersTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<bool> get canAccessAttendance => $composableBuilder(
+    column: $table.canAccessAttendance,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -14368,6 +16190,7 @@ class $$UsersTableTableManager
                 Value<String> role = const Value.absent(),
                 Value<String?> terminalId = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> canAccessAttendance = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion(
@@ -14378,6 +16201,7 @@ class $$UsersTableTableManager
                 role: role,
                 terminalId: terminalId,
                 isActive: isActive,
+                canAccessAttendance: canAccessAttendance,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -14390,6 +16214,7 @@ class $$UsersTableTableManager
                 Value<String> role = const Value.absent(),
                 Value<String?> terminalId = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> canAccessAttendance = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UsersCompanion.insert(
@@ -14400,6 +16225,7 @@ class $$UsersTableTableManager
                 role: role,
                 terminalId: terminalId,
                 isActive: isActive,
+                canAccessAttendance: canAccessAttendance,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -20668,6 +22494,961 @@ typedef $$TerminalsTableProcessedTableManager =
       Terminal,
       PrefetchHooks Function()
     >;
+typedef $$RolesTableCreateCompanionBuilder =
+    RolesCompanion Function({
+      required String id,
+      Value<String?> storeId,
+      required String name,
+      Value<String?> description,
+      Value<bool> isSystem,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$RolesTableUpdateCompanionBuilder =
+    RolesCompanion Function({
+      Value<String> id,
+      Value<String?> storeId,
+      Value<String> name,
+      Value<String?> description,
+      Value<bool> isSystem,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$RolesTableFilterComposer extends Composer<_$AppDatabase, $RolesTable> {
+  $$RolesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get storeId => $composableBuilder(
+    column: $table.storeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RolesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RolesTable> {
+  $$RolesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get storeId => $composableBuilder(
+    column: $table.storeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RolesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RolesTable> {
+  $$RolesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get storeId =>
+      $composableBuilder(column: $table.storeId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSystem =>
+      $composableBuilder(column: $table.isSystem, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$RolesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RolesTable,
+          Role,
+          $$RolesTableFilterComposer,
+          $$RolesTableOrderingComposer,
+          $$RolesTableAnnotationComposer,
+          $$RolesTableCreateCompanionBuilder,
+          $$RolesTableUpdateCompanionBuilder,
+          (Role, BaseReferences<_$AppDatabase, $RolesTable, Role>),
+          Role,
+          PrefetchHooks Function()
+        > {
+  $$RolesTableTableManager(_$AppDatabase db, $RolesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$RolesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$RolesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$RolesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> storeId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RolesCompanion(
+                id: id,
+                storeId: storeId,
+                name: name,
+                description: description,
+                isSystem: isSystem,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> storeId = const Value.absent(),
+                required String name,
+                Value<String?> description = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RolesCompanion.insert(
+                id: id,
+                storeId: storeId,
+                name: name,
+                description: description,
+                isSystem: isSystem,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RolesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RolesTable,
+      Role,
+      $$RolesTableFilterComposer,
+      $$RolesTableOrderingComposer,
+      $$RolesTableAnnotationComposer,
+      $$RolesTableCreateCompanionBuilder,
+      $$RolesTableUpdateCompanionBuilder,
+      (Role, BaseReferences<_$AppDatabase, $RolesTable, Role>),
+      Role,
+      PrefetchHooks Function()
+    >;
+typedef $$RbacPermissionsTableCreateCompanionBuilder =
+    RbacPermissionsCompanion Function({
+      required String id,
+      required String module,
+      required String name,
+      Value<String?> description,
+      Value<int> rowid,
+    });
+typedef $$RbacPermissionsTableUpdateCompanionBuilder =
+    RbacPermissionsCompanion Function({
+      Value<String> id,
+      Value<String> module,
+      Value<String> name,
+      Value<String?> description,
+      Value<int> rowid,
+    });
+
+class $$RbacPermissionsTableFilterComposer
+    extends Composer<_$AppDatabase, $RbacPermissionsTable> {
+  $$RbacPermissionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get module => $composableBuilder(
+    column: $table.module,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RbacPermissionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RbacPermissionsTable> {
+  $$RbacPermissionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get module => $composableBuilder(
+    column: $table.module,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RbacPermissionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RbacPermissionsTable> {
+  $$RbacPermissionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get module =>
+      $composableBuilder(column: $table.module, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+}
+
+class $$RbacPermissionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RbacPermissionsTable,
+          RbacPermission,
+          $$RbacPermissionsTableFilterComposer,
+          $$RbacPermissionsTableOrderingComposer,
+          $$RbacPermissionsTableAnnotationComposer,
+          $$RbacPermissionsTableCreateCompanionBuilder,
+          $$RbacPermissionsTableUpdateCompanionBuilder,
+          (
+            RbacPermission,
+            BaseReferences<
+              _$AppDatabase,
+              $RbacPermissionsTable,
+              RbacPermission
+            >,
+          ),
+          RbacPermission,
+          PrefetchHooks Function()
+        > {
+  $$RbacPermissionsTableTableManager(
+    _$AppDatabase db,
+    $RbacPermissionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () =>
+                  $$RbacPermissionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$RbacPermissionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer:
+              () => $$RbacPermissionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> module = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RbacPermissionsCompanion(
+                id: id,
+                module: module,
+                name: name,
+                description: description,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String module,
+                required String name,
+                Value<String?> description = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RbacPermissionsCompanion.insert(
+                id: id,
+                module: module,
+                name: name,
+                description: description,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RbacPermissionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RbacPermissionsTable,
+      RbacPermission,
+      $$RbacPermissionsTableFilterComposer,
+      $$RbacPermissionsTableOrderingComposer,
+      $$RbacPermissionsTableAnnotationComposer,
+      $$RbacPermissionsTableCreateCompanionBuilder,
+      $$RbacPermissionsTableUpdateCompanionBuilder,
+      (
+        RbacPermission,
+        BaseReferences<_$AppDatabase, $RbacPermissionsTable, RbacPermission>,
+      ),
+      RbacPermission,
+      PrefetchHooks Function()
+    >;
+typedef $$RolePermissionsTableCreateCompanionBuilder =
+    RolePermissionsCompanion Function({
+      required String roleId,
+      required String permissionId,
+      Value<int> rowid,
+    });
+typedef $$RolePermissionsTableUpdateCompanionBuilder =
+    RolePermissionsCompanion Function({
+      Value<String> roleId,
+      Value<String> permissionId,
+      Value<int> rowid,
+    });
+
+class $$RolePermissionsTableFilterComposer
+    extends Composer<_$AppDatabase, $RolePermissionsTable> {
+  $$RolePermissionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get roleId => $composableBuilder(
+    column: $table.roleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get permissionId => $composableBuilder(
+    column: $table.permissionId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RolePermissionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RolePermissionsTable> {
+  $$RolePermissionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get roleId => $composableBuilder(
+    column: $table.roleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get permissionId => $composableBuilder(
+    column: $table.permissionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RolePermissionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RolePermissionsTable> {
+  $$RolePermissionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get roleId =>
+      $composableBuilder(column: $table.roleId, builder: (column) => column);
+
+  GeneratedColumn<String> get permissionId => $composableBuilder(
+    column: $table.permissionId,
+    builder: (column) => column,
+  );
+}
+
+class $$RolePermissionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RolePermissionsTable,
+          RolePermission,
+          $$RolePermissionsTableFilterComposer,
+          $$RolePermissionsTableOrderingComposer,
+          $$RolePermissionsTableAnnotationComposer,
+          $$RolePermissionsTableCreateCompanionBuilder,
+          $$RolePermissionsTableUpdateCompanionBuilder,
+          (
+            RolePermission,
+            BaseReferences<
+              _$AppDatabase,
+              $RolePermissionsTable,
+              RolePermission
+            >,
+          ),
+          RolePermission,
+          PrefetchHooks Function()
+        > {
+  $$RolePermissionsTableTableManager(
+    _$AppDatabase db,
+    $RolePermissionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () =>
+                  $$RolePermissionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$RolePermissionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer:
+              () => $$RolePermissionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> roleId = const Value.absent(),
+                Value<String> permissionId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RolePermissionsCompanion(
+                roleId: roleId,
+                permissionId: permissionId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String roleId,
+                required String permissionId,
+                Value<int> rowid = const Value.absent(),
+              }) => RolePermissionsCompanion.insert(
+                roleId: roleId,
+                permissionId: permissionId,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RolePermissionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RolePermissionsTable,
+      RolePermission,
+      $$RolePermissionsTableFilterComposer,
+      $$RolePermissionsTableOrderingComposer,
+      $$RolePermissionsTableAnnotationComposer,
+      $$RolePermissionsTableCreateCompanionBuilder,
+      $$RolePermissionsTableUpdateCompanionBuilder,
+      (
+        RolePermission,
+        BaseReferences<_$AppDatabase, $RolePermissionsTable, RolePermission>,
+      ),
+      RolePermission,
+      PrefetchHooks Function()
+    >;
+typedef $$AttendancesTableCreateCompanionBuilder =
+    AttendancesCompanion Function({
+      required String id,
+      required String userId,
+      required String storeId,
+      Value<String?> terminalId,
+      required String type,
+      required DateTime timestamp,
+      required double latitude,
+      required double longitude,
+      Value<bool> isMockLocation,
+      Value<String> address,
+      required String photoPath,
+      Value<bool> telegramSent,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$AttendancesTableUpdateCompanionBuilder =
+    AttendancesCompanion Function({
+      Value<String> id,
+      Value<String> userId,
+      Value<String> storeId,
+      Value<String?> terminalId,
+      Value<String> type,
+      Value<DateTime> timestamp,
+      Value<double> latitude,
+      Value<double> longitude,
+      Value<bool> isMockLocation,
+      Value<String> address,
+      Value<String> photoPath,
+      Value<bool> telegramSent,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AttendancesTableFilterComposer
+    extends Composer<_$AppDatabase, $AttendancesTable> {
+  $$AttendancesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get storeId => $composableBuilder(
+    column: $table.storeId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get terminalId => $composableBuilder(
+    column: $table.terminalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isMockLocation => $composableBuilder(
+    column: $table.isMockLocation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get telegramSent => $composableBuilder(
+    column: $table.telegramSent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AttendancesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AttendancesTable> {
+  $$AttendancesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get storeId => $composableBuilder(
+    column: $table.storeId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get terminalId => $composableBuilder(
+    column: $table.terminalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isMockLocation => $composableBuilder(
+    column: $table.isMockLocation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoPath => $composableBuilder(
+    column: $table.photoPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get telegramSent => $composableBuilder(
+    column: $table.telegramSent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AttendancesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AttendancesTable> {
+  $$AttendancesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get storeId =>
+      $composableBuilder(column: $table.storeId, builder: (column) => column);
+
+  GeneratedColumn<String> get terminalId => $composableBuilder(
+    column: $table.terminalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMockLocation => $composableBuilder(
+    column: $table.isMockLocation,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get photoPath =>
+      $composableBuilder(column: $table.photoPath, builder: (column) => column);
+
+  GeneratedColumn<bool> get telegramSent => $composableBuilder(
+    column: $table.telegramSent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AttendancesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AttendancesTable,
+          Attendance,
+          $$AttendancesTableFilterComposer,
+          $$AttendancesTableOrderingComposer,
+          $$AttendancesTableAnnotationComposer,
+          $$AttendancesTableCreateCompanionBuilder,
+          $$AttendancesTableUpdateCompanionBuilder,
+          (
+            Attendance,
+            BaseReferences<_$AppDatabase, $AttendancesTable, Attendance>,
+          ),
+          Attendance,
+          PrefetchHooks Function()
+        > {
+  $$AttendancesTableTableManager(_$AppDatabase db, $AttendancesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$AttendancesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$AttendancesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () =>
+                  $$AttendancesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> storeId = const Value.absent(),
+                Value<String?> terminalId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<DateTime> timestamp = const Value.absent(),
+                Value<double> latitude = const Value.absent(),
+                Value<double> longitude = const Value.absent(),
+                Value<bool> isMockLocation = const Value.absent(),
+                Value<String> address = const Value.absent(),
+                Value<String> photoPath = const Value.absent(),
+                Value<bool> telegramSent = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AttendancesCompanion(
+                id: id,
+                userId: userId,
+                storeId: storeId,
+                terminalId: terminalId,
+                type: type,
+                timestamp: timestamp,
+                latitude: latitude,
+                longitude: longitude,
+                isMockLocation: isMockLocation,
+                address: address,
+                photoPath: photoPath,
+                telegramSent: telegramSent,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String userId,
+                required String storeId,
+                Value<String?> terminalId = const Value.absent(),
+                required String type,
+                required DateTime timestamp,
+                required double latitude,
+                required double longitude,
+                Value<bool> isMockLocation = const Value.absent(),
+                Value<String> address = const Value.absent(),
+                required String photoPath,
+                Value<bool> telegramSent = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AttendancesCompanion.insert(
+                id: id,
+                userId: userId,
+                storeId: storeId,
+                terminalId: terminalId,
+                type: type,
+                timestamp: timestamp,
+                latitude: latitude,
+                longitude: longitude,
+                isMockLocation: isMockLocation,
+                address: address,
+                photoPath: photoPath,
+                telegramSent: telegramSent,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AttendancesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AttendancesTable,
+      Attendance,
+      $$AttendancesTableFilterComposer,
+      $$AttendancesTableOrderingComposer,
+      $$AttendancesTableAnnotationComposer,
+      $$AttendancesTableCreateCompanionBuilder,
+      $$AttendancesTableUpdateCompanionBuilder,
+      (
+        Attendance,
+        BaseReferences<_$AppDatabase, $AttendancesTable, Attendance>,
+      ),
+      Attendance,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -20718,4 +23499,12 @@ class $AppDatabaseManager {
       $$BomItemsTableTableManager(_db, _db.bomItems);
   $$TerminalsTableTableManager get terminals =>
       $$TerminalsTableTableManager(_db, _db.terminals);
+  $$RolesTableTableManager get roles =>
+      $$RolesTableTableManager(_db, _db.roles);
+  $$RbacPermissionsTableTableManager get rbacPermissions =>
+      $$RbacPermissionsTableTableManager(_db, _db.rbacPermissions);
+  $$RolePermissionsTableTableManager get rolePermissions =>
+      $$RolePermissionsTableTableManager(_db, _db.rolePermissions);
+  $$AttendancesTableTableManager get attendances =>
+      $$AttendancesTableTableManager(_db, _db.attendances);
 }

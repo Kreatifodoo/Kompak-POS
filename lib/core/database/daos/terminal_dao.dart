@@ -31,6 +31,27 @@ class TerminalDao extends DatabaseAccessor<AppDatabase>
             ..orderBy([(t) => OrderingTerm.asc(t.name)]))
           .get();
 
+  /// Get all terminals for a list of store IDs (for HQ consolidated view)
+  Future<List<Terminal>> getByStoreIds(List<String> storeIds) =>
+      (select(terminals)
+            ..where((t) => t.storeId.isIn(storeIds))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.storeId),
+              (t) => OrderingTerm.asc(t.name),
+            ]))
+          .get();
+
+  /// Get active terminals for a list of store IDs
+  Future<List<Terminal>> getActiveByStoreIds(List<String> storeIds) =>
+      (select(terminals)
+            ..where(
+                (t) => t.storeId.isIn(storeIds) & t.isActive.equals(true))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.storeId),
+              (t) => OrderingTerm.asc(t.name),
+            ]))
+          .get();
+
   /// Get a single terminal by ID
   Future<Terminal?> getById(String id) =>
       (select(terminals)..where((t) => t.id.equals(id))).getSingleOrNull();

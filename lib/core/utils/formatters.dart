@@ -22,18 +22,29 @@ class Formatters {
 
   static String dateTime(DateTime dt) => _dateTimeFormat.format(dt);
 
-  static String orderNumber(String prefix, int sequence, {DateTime? date}) {
+  /// Generate order number with optional terminal code.
+  /// e.g. "KP-T1-260324-0001" (with terminal) or "KP260324-0001" (without)
+  static String orderNumber(String prefix, int sequence,
+      {DateTime? date, String? terminalCode}) {
     final d = date ?? DateTime.now();
     final datePart =
         '${d.year.toString().substring(2)}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+    if (terminalCode != null && terminalCode.isNotEmpty) {
+      return '$prefix-$terminalCode-$datePart-${sequence.toString().padLeft(4, '0')}';
+    }
     return '$prefix$datePart-${sequence.toString().padLeft(4, '0')}';
   }
 
-  /// Extract the date prefix portion from an order number (e.g. "KP240323" from "KP240323-0001")
-  static String orderDatePrefix(String prefix, {DateTime? date}) {
+  /// Extract the date prefix portion from an order number.
+  /// e.g. "KP-T1-260324" (with terminal) or "KP260324" (without)
+  static String orderDatePrefix(String prefix,
+      {DateTime? date, String? terminalCode}) {
     final d = date ?? DateTime.now();
     final datePart =
         '${d.year.toString().substring(2)}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+    if (terminalCode != null && terminalCode.isNotEmpty) {
+      return '$prefix-$terminalCode-$datePart';
+    }
     return '$prefix$datePart';
   }
 

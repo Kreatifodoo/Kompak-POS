@@ -63,6 +63,34 @@ class _PrinterSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Pairing instruction banner
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withOpacity(0.4)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      color: Colors.amber, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Pastikan printer sudah di-pair di Pengaturan Bluetooth Android terlebih dahulu, baru lakukan Scan Devices di sini.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Terminal info banner
             if (ref.watch(currentTerminalProvider) != null)
               Container(
@@ -247,14 +275,16 @@ class _PrinterSettingsScreenState
                         ),
                         const SizedBox(height: AppSpacing.md),
                         Text(
-                          'No devices found',
+                          'Tidak ada printer ditemukan',
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Tap "Scan Devices" to search for Bluetooth printers',
+                          '1. Buka Pengaturan → Bluetooth di HP Android\n'
+                          '2. Pair printer terlebih dahulu\n'
+                          '3. Kembali ke sini lalu tekan "Scan Devices"',
                           style: AppTextStyles.bodySmall,
                           textAlign: TextAlign.center,
                         ),
@@ -473,7 +503,10 @@ class _PrinterSettingsScreenState
 
           context.showSnackBar('Connected to ${device.name}');
         } else {
-          context.showSnackBar('Failed to connect. Check Bluetooth permissions.', isError: true);
+          context.showSnackBar(
+            'Gagal connect. Pastikan printer sudah di-pair di Pengaturan Bluetooth Android, lalu coba lagi.',
+            isError: true,
+          );
         }
       }
     } catch (e) {

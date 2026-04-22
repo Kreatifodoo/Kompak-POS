@@ -42,9 +42,47 @@ enum DiscountType {
 }
 
 enum UserRole {
+  owner,
   admin,
+  branchManager,
   cashier,
   kitchen;
+
+  String get label {
+    switch (this) {
+      case owner:
+        return 'Owner';
+      case admin:
+        return 'Admin';
+      case branchManager:
+        return 'Branch Manager';
+      case cashier:
+        return 'Cashier';
+      case kitchen:
+        return 'Kitchen';
+    }
+  }
+
+  String get dbValue {
+    switch (this) {
+      case owner:
+        return 'owner';
+      case admin:
+        return 'admin';
+      case branchManager:
+        return 'branch_manager';
+      case cashier:
+        return 'cashier';
+      case kitchen:
+        return 'kitchen';
+    }
+  }
+
+  static UserRole fromDb(String value) =>
+      UserRole.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => UserRole.cashier,
+      );
 }
 
 enum SyncStatus {
@@ -88,7 +126,10 @@ enum ChargeKategori {
   }
 
   static ChargeKategori fromDb(String value) =>
-      ChargeKategori.values.firstWhere((e) => e.dbValue == value);
+      ChargeKategori.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => ChargeKategori.pajak,
+      );
 }
 
 enum ChargeTipe {
@@ -114,7 +155,10 @@ enum ChargeTipe {
   }
 
   static ChargeTipe fromDb(String value) =>
-      ChargeTipe.values.firstWhere((e) => e.dbValue == value);
+      ChargeTipe.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => ChargeTipe.nominal,
+      );
 }
 
 enum ChargeIncludeBase {
@@ -140,7 +184,10 @@ enum ChargeIncludeBase {
   }
 
   static ChargeIncludeBase fromDb(String value) =>
-      ChargeIncludeBase.values.firstWhere((e) => e.dbValue == value);
+      ChargeIncludeBase.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => ChargeIncludeBase.subtotal,
+      );
 }
 
 enum PromotionTipeProgram {
@@ -171,7 +218,10 @@ enum PromotionTipeProgram {
   }
 
   static PromotionTipeProgram fromDb(String value) =>
-      PromotionTipeProgram.values.firstWhere((e) => e.dbValue == value);
+      PromotionTipeProgram.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => PromotionTipeProgram.otomatis,
+      );
 }
 
 enum PromotionTipeReward {
@@ -202,7 +252,10 @@ enum PromotionTipeReward {
   }
 
   static PromotionTipeReward fromDb(String value) =>
-      PromotionTipeReward.values.firstWhere((e) => e.dbValue == value);
+      PromotionTipeReward.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => PromotionTipeReward.diskonNominal,
+      );
 }
 
 enum PromotionApplyTo {
@@ -233,7 +286,10 @@ enum PromotionApplyTo {
   }
 
   static PromotionApplyTo fromDb(String value) =>
-      PromotionApplyTo.values.firstWhere((e) => e.dbValue == value);
+      PromotionApplyTo.values.firstWhere(
+        (e) => e.dbValue == value,
+        orElse: () => PromotionApplyTo.order,
+      );
 }
 
 enum SessionStatus {

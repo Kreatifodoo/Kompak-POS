@@ -1,7 +1,7 @@
 name: kompak_pos
 description: "Enterprise-grade offline-first POS for Android & Web retail stores."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.8+8
 
 environment:
   sdk: ^3.7.2
@@ -46,6 +46,10 @@ dependencies:
   # Image Picker
   image_picker: ^1.1.2
 
+  # Attendance: Camera & GPS
+  camera: ^0.11.0+2
+  geolocator: ^14.0.2
+
   # UI Utilities
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
@@ -61,6 +65,17 @@ dependencies:
   collection: ^1.19.1
   image: ^4.8.0
   crypto: ^3.0.7
+  wakelock_plus: ^1.5.1
+  geocoding: ^4.0.0
+
+  # Backup & Restore
+  file_picker: ^8.0.0
+  share_plus: ^10.0.0
+
+  # License & Device Activation
+  device_info_plus: ^10.1.0
+  flutter_secure_storage: ^9.2.2
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

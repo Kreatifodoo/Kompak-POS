@@ -26,6 +26,10 @@ import 'tables/inventory_movements_table.dart';
 import 'tables/order_returns_table.dart';
 import 'tables/bom_items_table.dart';
 import 'tables/terminals_table.dart';
+import 'tables/roles_table.dart';
+import 'tables/rbac_permissions_table.dart';
+import 'tables/role_permissions_table.dart';
+import 'tables/attendances_table.dart';
 
 import 'daos/store_dao.dart';
 import 'daos/user_dao.dart';
@@ -46,6 +50,9 @@ import 'daos/inventory_movement_dao.dart';
 import 'daos/order_return_dao.dart';
 import 'daos/bom_dao.dart';
 import 'daos/terminal_dao.dart';
+import 'daos/role_dao.dart';
+import 'daos/rbac_permission_dao.dart';
+import 'daos/attendance_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -74,6 +81,10 @@ part 'app_database.g.dart';
     OrderReturns,
     BomItems,
     Terminals,
+    Roles,
+    RbacPermissions,
+    RolePermissions,
+    Attendances,
   ],
   daos: [
     StoreDao,
@@ -95,6 +106,9 @@ part 'app_database.g.dart';
     OrderReturnDao,
     BomDao,
     TerminalDao,
+    RoleDao,
+    RbacPermissionDao,
+    AttendanceDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -102,7 +116,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 21;
 
   static String _hashPin(String pin) {
     const salt = 'kompak_pos_pin_salt_v1';
@@ -113,7 +127,28 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
+        onCreate: (m) async {
+          await m.createAll();
+          await _seedRbacDefaults(customStatement);
+          // Performance indexes for common query patterns
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_orders_store_date_status '
+            'ON orders (store_id, created_at DESC, status)',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_orders_session ON orders (session_id)',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory (product_id)',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_sessions_terminal_status '
+            'ON pos_sessions (terminal_id, status)',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status, created_at)',
+          );
+        },
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.createTable(paymentMethods);
@@ -199,8 +234,169 @@ class AppDatabase extends _$AppDatabase {
           if (from < 16) {
             await m.addColumn(stores, stores.parentId);
           }
+          if (from < 17) {
+            await m.createTable(roles);
+            await m.createTable(rbacPermissions);
+            await m.createTable(rolePermissions);
+            await _seedRbacDefaults(customStatement);
+          }
+          if (from < 18) {
+            // BUG-SIT-PERF: Add composite indexes for common query patterns.
+            // Prevents full table scan once orders/sessions grow past 10k rows.
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_orders_store_date_status '
+              'ON orders (store_id, created_at DESC, status)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_orders_session '
+              'ON orders (session_id)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_inventory_product '
+              'ON inventory (product_id)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_sessions_terminal_status '
+              'ON pos_sessions (terminal_id, status)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_sync_queue_status '
+              'ON sync_queue (status, created_at)',
+            );
+          }
+          if (from < 19) {
+            await m.createTable(attendances);
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_attendance_user_ts '
+              'ON attendances (user_id, timestamp DESC)',
+            );
+            await customStatement(
+              'CREATE INDEX IF NOT EXISTS idx_attendance_store_ts '
+              'ON attendances (store_id, timestamp DESC)',
+            );
+          }
+          if (from < 20) {
+            // Add address column for reverse geocoding results
+            try {
+              await customStatement(
+                "ALTER TABLE attendances ADD COLUMN address TEXT NOT NULL DEFAULT ''",
+              );
+            } catch (_) {
+              // Column may already exist from fresh install on v19+
+            }
+          }
+          if (from < 21) {
+            // Multi-user attendance: add per-user access flag.
+            // Existing users default to false; admins can opt them in via the
+            // user form. Owner/admin/branch_manager are auto-granted at
+            // runtime via UserDao.canAccessAttendance() helper.
+            try {
+              await customStatement(
+                'ALTER TABLE users ADD COLUMN can_access_attendance INTEGER NOT NULL DEFAULT 0',
+              );
+            } catch (_) {
+              // Column may already exist from fresh install on v21+
+            }
+          }
         },
       );
+
+  /// Seed default RBAC roles, permissions, and role-permission mappings.
+  /// Uses raw SQL via [exec] because DAOs may not be ready during migration.
+  static Future<void> _seedRbacDefaults(
+      Future<void> Function(String, [List<Object?>?]) exec) async {
+    final now = DateTime.now().toIso8601String();
+
+    // ── 1. System roles ──
+    const rolesSql = '''
+INSERT OR IGNORE INTO roles (id, store_id, name, description, is_system, created_at) VALUES
+  ('owner', NULL, 'Owner', 'Full system access', 1, ?),
+  ('admin', NULL, 'Admin', 'Administrative access', 1, ?),
+  ('branch_manager', NULL, 'Branch Manager', 'Branch-level management', 1, ?),
+  ('cashier', NULL, 'Cashier', 'POS operations', 1, ?),
+  ('kitchen', NULL, 'Kitchen', 'Kitchen display only', 1, ?)
+''';
+    await exec(rolesSql, [now, now, now, now, now]);
+
+    // ── 2. Permission definitions ──
+    const permSql = '''
+INSERT OR IGNORE INTO rbac_permissions (id, module, name, description) VALUES
+  ('dashboard.view', 'dashboard', 'Lihat Dashboard', 'Akses halaman dashboard'),
+  ('reports.view', 'reports', 'Lihat Laporan', 'Akses menu laporan'),
+  ('reports.sales', 'reports', 'Laporan Penjualan', 'Lihat laporan penjualan'),
+  ('reports.sessions', 'reports', 'Laporan Sesi', 'Lihat laporan sesi kasir'),
+  ('master_data.manage', 'master_data', 'Kelola Master Data', 'Kelola produk, kategori, dll'),
+  ('branches.manage', 'branches', 'Kelola Cabang', 'Buat dan edit cabang'),
+  ('branches.view_all', 'branches', 'Lihat Semua Cabang', 'Lihat data semua cabang'),
+  ('users.manage', 'users', 'Kelola Pengguna', 'Kelola user dan role'),
+  ('pos.access', 'pos', 'Akses POS', 'Akses halaman kasir'),
+  ('pos.returns', 'pos', 'Proses Retur', 'Memproses retur order'),
+  ('pos.discount', 'pos', 'Beri Diskon', 'Memberikan diskon'),
+  ('kitchen.view', 'kitchen', 'Lihat Kitchen Display', 'Akses kitchen display'),
+  ('inventory.view', 'inventory', 'Lihat Inventory', 'Lihat stok barang'),
+  ('inventory.restock', 'inventory', 'Restock Inventory', 'Restock barang masuk'),
+  ('inventory.adjust', 'inventory', 'Adjustment Inventory', 'Adjustment stok'),
+  ('inventory.report', 'inventory', 'Laporan Inventory', 'Lihat laporan inventory'),
+  ('orders.view', 'orders', 'Lihat Order', 'Lihat daftar order'),
+  ('settings.view', 'settings', 'Lihat Settings', 'Akses halaman settings')
+''';
+    await exec(permSql);
+
+    // ── 3. Role → Permission mappings ──
+    const allPerms = [
+      'dashboard.view', 'reports.view', 'reports.sales', 'reports.sessions',
+      'master_data.manage', 'branches.manage', 'branches.view_all',
+      'users.manage', 'pos.access', 'pos.returns', 'pos.discount',
+      'kitchen.view', 'inventory.view', 'inventory.restock',
+      'inventory.adjust', 'inventory.report', 'orders.view', 'settings.view',
+    ];
+
+    // Owner gets ALL
+    for (final p in allPerms) {
+      await exec(
+        'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+        ['owner', p],
+      );
+    }
+
+    // Admin gets all except branches.view_all
+    for (final p in allPerms) {
+      if (p == 'branches.view_all') continue;
+      await exec(
+        'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+        ['admin', p],
+      );
+    }
+
+    // Branch Manager
+    const bmPerms = [
+      'dashboard.view', 'reports.view', 'reports.sales', 'reports.sessions',
+      'master_data.manage', 'pos.access', 'pos.returns', 'pos.discount',
+      'kitchen.view', 'inventory.view', 'inventory.restock',
+      'inventory.adjust', 'inventory.report', 'orders.view', 'settings.view',
+    ];
+    for (final p in bmPerms) {
+      await exec(
+        'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+        ['branch_manager', p],
+      );
+    }
+
+    // Cashier
+    const cashierPerms = ['pos.access', 'pos.discount', 'orders.view'];
+    for (final p in cashierPerms) {
+      await exec(
+        'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+        ['cashier', p],
+      );
+    }
+
+    // Kitchen
+    await exec(
+      'INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
+      ['kitchen', 'kitchen.view'],
+    );
+  }
 
   static QueryExecutor _openConnection() {
     return driftDatabase(

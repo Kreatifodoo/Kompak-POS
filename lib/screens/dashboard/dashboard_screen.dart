@@ -10,12 +10,15 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/core_providers.dart';
-import '../../modules/pos/cart_providers.dart';
 import '../../modules/orders/order_providers.dart';
 import '../../modules/inventory/inventory_providers.dart';
 import '../../modules/pos_session/pos_session_providers.dart';
 import '../../core/database/app_database.dart';
 import '../../screens/pos/session/close_register_dialog.dart';
+import '../../core/utils/permissions.dart';
+import '../../widgets/common/terminal_filter_dropdown.dart';
+import '../../widgets/common/branch_filter_dropdown.dart';
+import '../attendance/attendance_pin_dialog.dart';
 
 // ──────────────────────────────────────────────
 // Dashboard data model – computed once per build
@@ -41,7 +44,7 @@ class _DashboardData {
       thisMonthOrders.where((o) => o.status == 'returned').toList();
 }
 
-/// Provider for dashboard monthly analytics
+/// Provider for dashboard monthly analytics (filtered by terminal + branch)
 final _dashboardDataProvider = FutureProvider<_DashboardData>((ref) async {
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) {
@@ -53,6 +56,8 @@ final _dashboardDataProvider = FutureProvider<_DashboardData>((ref) async {
     );
   }
   final db = ref.watch(databaseProvider);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
   final now = DateTime.now();
 
   final thisMonthStart = DateTime(now.year, now.month, 1);
@@ -66,10 +71,10 @@ final _dashboardDataProvider = FutureProvider<_DashboardData>((ref) async {
   final tomorrow = DateTime(now.year, now.month, now.day + 1);
 
   final results = await Future.wait([
-    db.orderDao.getOrdersForAnalytics(storeId, thisMonthStart, thisMonthEnd),
-    db.orderDao.getOrdersForAnalytics(storeId, lastMonthStart, lastMonthEnd),
-    db.orderDao.getOrdersForAnalytics(storeId, thirtyDaysAgo, tomorrow),
-    db.orderDao.getOrdersForAnalytics(storeId, sevenDaysAgo, tomorrow),
+    db.orderDao.getOrdersForAnalyticsFiltered(storeId, thisMonthStart, thisMonthEnd, terminalId: terminalId, storeIds: storeIds),
+    db.orderDao.getOrdersForAnalyticsFiltered(storeId, lastMonthStart, lastMonthEnd, terminalId: terminalId, storeIds: storeIds),
+    db.orderDao.getOrdersForAnalyticsFiltered(storeId, thirtyDaysAgo, tomorrow, terminalId: terminalId, storeIds: storeIds),
+    db.orderDao.getOrdersForAnalyticsFiltered(storeId, sevenDaysAgo, tomorrow, terminalId: terminalId, storeIds: storeIds),
   ]);
 
   return _DashboardData(
@@ -86,6 +91,118 @@ final _dashboardDataProvider = FutureProvider<_DashboardData>((ref) async {
 enum ChartType { bar, line, pie }
 
 // ──────────────────────────────────────────────
+// Performance view modes (table, bar, line, pie)
+// ──────────────────────────────────────────────
+enum _PerfViewMode { table, bar, line, pie }
+
+class _EntityPerformance {
+  final String id;
+  final String name;
+  final double revenue;
+  final int transactionCount;
+  final double avo;
+
+  _EntityPerformance({
+    required this.id,
+    required this.name,
+    required this.revenue,
+    required this.transactionCount,
+    required this.avo,
+  });
+}
+
+const _perfColors = [
+  Color(0xFF0F80A6), // primary
+  Color(0xFF10B981), // green
+  Color(0xFFF59E0B), // amber
+  Color(0xFFEF4444), // red
+  Color(0xFF8B5CF6), // purple
+  Color(0xFF3B82F6), // blue
+  Color(0xFFEC4899), // pink
+  Color(0xFF6366F1), // indigo
+];
+
+/// Per-branch performance data (HQ only)
+final _branchPerformanceProvider =
+    FutureProvider<List<_EntityPerformance>>((ref) async {
+  final isHQ = ref.watch(isHQUserProvider);
+  if (!isHQ) return [];
+  final storeId = ref.watch(currentStoreIdProvider);
+  if (storeId == null) return [];
+  final db = ref.watch(databaseProvider);
+  final hqStore = await db.storeDao.getStoreById(storeId);
+  final branches = await db.storeDao.getBranches(storeId);
+  final allStores = [if (hqStore != null) hqStore, ...branches];
+
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month, 1);
+  final end = now;
+
+  final result = <_EntityPerformance>[];
+  for (final store in allStores) {
+    final orders = await db.orderDao.getOrdersForAnalyticsFiltered(
+      store.id, start, end,
+      storeIds: [store.id],
+    );
+    final completed = orders.where((o) => o.status == 'completed').toList();
+    final revenue = completed.fold<double>(0, (s, o) => s + o.total);
+    final count = completed.length;
+    result.add(_EntityPerformance(
+      id: store.id,
+      name: store.parentId == null ? '${store.name} (HQ)' : store.name,
+      revenue: revenue,
+      transactionCount: count,
+      avo: count > 0 ? revenue / count : 0,
+    ));
+  }
+  result.sort((a, b) => b.revenue.compareTo(a.revenue));
+  return result;
+});
+
+/// Per-terminal performance data (responsive to branch filter)
+final _terminalPerformanceProvider =
+    FutureProvider<List<_EntityPerformance>>((ref) async {
+  final storeId = ref.watch(currentStoreIdProvider);
+  if (storeId == null) return [];
+  final db = ref.watch(databaseProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
+  final selectedBranch = ref.watch(selectedBranchIdProvider);
+
+  List<Terminal> terminals;
+  if (storeIds != null && storeIds.length > 1 && selectedBranch == null) {
+    terminals = await db.terminalDao.getActiveByStoreIds(storeIds);
+  } else {
+    final sid = selectedBranch ?? storeId;
+    terminals = await db.terminalDao.getActiveByStore(sid);
+  }
+
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month, 1);
+  final end = now;
+
+  final result = <_EntityPerformance>[];
+  for (final terminal in terminals) {
+    final orders = await db.orderDao.getOrdersForAnalyticsFiltered(
+      terminal.storeId, start, end,
+      terminalId: terminal.id,
+      storeIds: [terminal.storeId],
+    );
+    final completed = orders.where((o) => o.status == 'completed').toList();
+    final revenue = completed.fold<double>(0, (s, o) => s + o.total);
+    final count = completed.length;
+    result.add(_EntityPerformance(
+      id: terminal.id,
+      name: terminal.name,
+      revenue: revenue,
+      transactionCount: count,
+      avo: count > 0 ? revenue / count : 0,
+    ));
+  }
+  result.sort((a, b) => b.revenue.compareTo(a.revenue));
+  return result;
+});
+
+// ──────────────────────────────────────────────
 // Main dashboard
 // ──────────────────────────────────────────────
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -97,6 +214,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ChartType _chartType = ChartType.bar;
+  _PerfViewMode _branchViewMode = _PerfViewMode.table;
+  _PerfViewMode _terminalViewMode = _PerfViewMode.table;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +240,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             style: AppTextStyles.heading3.copyWith(color: Colors.white)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.fingerprint_rounded, color: Colors.white),
+            tooltip: 'Absensi (PIN)',
+            onPressed: () => _openAttendancePinDialog(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () {
               ref.invalidate(_dashboardDataProvider);
@@ -129,10 +253,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+            tooltip: 'Logout',
+            onPressed: () => _handleLogout(context),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_rounded, color: Colors.white),
             onPressed: () => context.push('/settings'),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.primaryOrange.withOpacity(0.85),
+            ),
+            child: Row(
+              children: [
+                _buildHeaderAction(
+                  icon: Icons.point_of_sale_rounded,
+                  label: 'POS',
+                  onTap: () => context.push('/pos/catalog'),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                _buildHeaderAction(
+                  icon: Icons.list_alt_rounded,
+                  label: 'Order',
+                  onTap: () => context.push('/orders'),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                _buildHeaderAction(
+                  icon: Icons.assessment_rounded,
+                  label: 'Laporan',
+                  onTap: () => context.push('/reports/sessions'),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                _buildHeaderAction(
+                  icon: Icons.fingerprint_rounded,
+                  label: 'Absensi',
+                  onTap: () => _openAttendancePinDialog(context),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       drawer: _buildDrawer(context, ref),
       body: RefreshIndicator(
@@ -149,6 +316,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               // Welcome header
               _buildWelcomeHeader(currentUser, currentStore),
+              const SizedBox(height: AppSpacing.sm),
+
+              // Terminal & branch filter dropdowns
+              const Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  BranchFilterDropdown(),
+                  TerminalFilterDropdown(),
+                ],
+              ),
               const SizedBox(height: AppSpacing.md),
 
               // Session status
@@ -197,6 +375,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               dashAsync.when(
                 data: (d) => _buildTrendPanel(d),
                 loading: () => _buildLoadingCard(260),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // ═══════════════════════════════════════
+              // 2a. KINERJA CABANG (HQ only)
+              // ═══════════════════════════════════════
+              if (ref.watch(isHQUserProvider))
+                ref.watch(_branchPerformanceProvider).when(
+                  data: (data) => data.isEmpty
+                      ? const SizedBox.shrink()
+                      : _buildPerformancePanel(
+                          title: 'Kinerja Cabang',
+                          icon: Icons.store_rounded,
+                          iconColor: AppColors.infoBlue,
+                          data: data,
+                          viewMode: _branchViewMode,
+                          onViewModeChanged: (m) =>
+                              setState(() => _branchViewMode = m),
+                        ),
+                  loading: () => _buildLoadingCard(200),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+
+              if (ref.watch(isHQUserProvider))
+                const SizedBox(height: AppSpacing.lg),
+
+              // ═══════════════════════════════════════
+              // 2b. KINERJA TERMINAL POS
+              // ═══════════════════════════════════════
+              ref.watch(_terminalPerformanceProvider).when(
+                data: (data) => data.length < 2
+                    ? const SizedBox.shrink()
+                    : _buildPerformancePanel(
+                        title: 'Kinerja Terminal POS',
+                        icon: Icons.point_of_sale_rounded,
+                        iconColor: AppColors.successGreen,
+                        data: data,
+                        viewMode: _terminalViewMode,
+                        onViewModeChanged: (m) =>
+                            setState(() => _terminalViewMode = m),
+                      ),
+                loading: () => _buildLoadingCard(200),
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
@@ -254,38 +476,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: AppSpacing.md),
-
-              // Quick actions
-              Text('Aksi Cepat', style: AppTextStyles.heading3),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickAction(context,
-                        icon: Icons.point_of_sale_rounded,
-                        label: 'Buka POS',
-                        color: AppColors.primaryOrange,
-                        onTap: () => context.push('/pos/catalog')),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildQuickAction(context,
-                        icon: Icons.list_alt_rounded,
-                        label: 'List Order',
-                        color: AppColors.infoBlue,
-                        onTap: () => context.push('/orders')),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _buildQuickAction(context,
-                        icon: Icons.assessment_rounded,
-                        label: 'Laporan',
-                        color: AppColors.successGreen,
-                        onTap: () => context.push('/reports/sessions')),
-                  ),
-                ],
-              ),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
@@ -829,6 +1019,321 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   // ──────────────────────────────────────────
+  // Performance Panel (Branch / Terminal)
+  // ──────────────────────────────────────────
+  Widget _buildPerformancePanel({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<_EntityPerformance> data,
+    required _PerfViewMode viewMode,
+    required ValueChanged<_PerfViewMode> onViewModeChanged,
+  }) {
+    return _buildSectionCard(
+      title: title,
+      icon: icon,
+      iconColor: iconColor,
+      trailing: _buildPerfViewToggle(viewMode, onViewModeChanged),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: viewMode == _PerfViewMode.table
+            ? _buildPerfTable(data)
+            : viewMode == _PerfViewMode.bar
+                ? _buildPerfBarChart(data)
+                : viewMode == _PerfViewMode.line
+                    ? _buildPerfLineChart(data)
+                    : _buildPerfPieChart(data),
+      ),
+    );
+  }
+
+  Widget _buildPerfViewToggle(
+      _PerfViewMode current, ValueChanged<_PerfViewMode> onChanged) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceGrey,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _perfToggleBtn(
+              _PerfViewMode.table, Icons.table_chart_rounded, current, onChanged),
+          _perfToggleBtn(
+              _PerfViewMode.bar, Icons.bar_chart_rounded, current, onChanged),
+          _perfToggleBtn(
+              _PerfViewMode.line, Icons.show_chart_rounded, current, onChanged),
+          _perfToggleBtn(
+              _PerfViewMode.pie, Icons.pie_chart_rounded, current, onChanged),
+        ],
+      ),
+    );
+  }
+
+  Widget _perfToggleBtn(_PerfViewMode mode, IconData icon,
+      _PerfViewMode current, ValueChanged<_PerfViewMode> onChanged) {
+    final isSelected = current == mode;
+    return GestureDetector(
+      onTap: () => onChanged(mode),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryOrange : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon,
+            size: 16, color: isSelected ? Colors.white : AppColors.textHint),
+      ),
+    );
+  }
+
+  // ── Performance: Table View ──
+  Widget _buildPerfTable(List<_EntityPerformance> data) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 16,
+        headingRowHeight: 36,
+        dataRowMinHeight: 36,
+        dataRowMaxHeight: 44,
+        headingTextStyle: AppTextStyles.caption.copyWith(
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+        columns: const [
+          DataColumn(label: Text('#')),
+          DataColumn(label: Text('Nama')),
+          DataColumn(label: Text('Revenue'), numeric: true),
+          DataColumn(label: Text('Trx'), numeric: true),
+          DataColumn(label: Text('AVO'), numeric: true),
+        ],
+        rows: List.generate(data.length, (i) {
+          final d = data[i];
+          final isTop = i == 0 && data.length > 1;
+          return DataRow(
+            color: WidgetStateProperty.resolveWith<Color?>((states) =>
+                isTop ? AppColors.primaryOrange.withOpacity(0.08) : null),
+            cells: [
+              DataCell(Text('${i + 1}',
+                  style: AppTextStyles.bodySmall
+                      .copyWith(fontWeight: FontWeight.w600))),
+              DataCell(Text(d.name,
+                  style: AppTextStyles.bodySmall.copyWith(
+                      fontWeight: isTop ? FontWeight.w700 : FontWeight.w500))),
+              DataCell(Text(Formatters.currency(d.revenue),
+                  style: AppTextStyles.bodySmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isTop
+                          ? AppColors.primaryOrange
+                          : AppColors.textPrimary))),
+              DataCell(Text('${d.transactionCount}',
+                  style: AppTextStyles.bodySmall)),
+              DataCell(Text(Formatters.currency(d.avo),
+                  style: AppTextStyles.bodySmall)),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  // ── Performance: Horizontal Bar Chart ──
+  Widget _buildPerfBarChart(List<_EntityPerformance> data) {
+    final maxRevenue = data.fold<double>(0, (m, d) => math.max(m, d.revenue));
+    final chartMax = maxRevenue == 0 ? 1.0 : maxRevenue;
+
+    return Column(
+      children: List.generate(data.length, (i) {
+        final d = data[i];
+        final ratio = d.revenue / chartMax;
+        final color = _perfColors[i % _perfColors.length];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 80,
+                    child: Text(d.name,
+                        style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceGrey,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        FractionallySizedBox(
+                          widthFactor: ratio.clamp(0.02, 1.0),
+                          child: Container(
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 6),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _compactCurrency(d.revenue),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(
+                    width: 36,
+                    child: Text('${d.transactionCount}trx',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textHint, fontSize: 9),
+                        textAlign: TextAlign.right),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Performance: Line Chart ──
+  Widget _buildPerfLineChart(List<_EntityPerformance> data) {
+    if (data.isEmpty) return const Center(child: Text('Belum ada data'));
+    final maxVal = data.fold<double>(0, (m, d) => math.max(m, d.revenue));
+    final chartMax = maxVal == 0 ? 1.0 : maxVal;
+
+    return SizedBox(
+      height: math.max(180.0, data.length * 10.0 + 60),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight - 24;
+          return Column(
+            children: [
+              Expanded(
+                child: CustomPaint(
+                  size: Size(w, h),
+                  painter: _PerfLineChartPainter(
+                    data: data,
+                    maxValue: chartMax,
+                    colors: _perfColors,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: data.map((d) {
+                  return Expanded(
+                    child: Text(
+                      d.name,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.caption
+                          .copyWith(fontSize: 9, color: AppColors.textHint),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Performance: Pie/Donut Chart ──
+  Widget _buildPerfPieChart(List<_EntityPerformance> data) {
+    final totalRevenue = data.fold<double>(0, (s, d) => s + d.revenue);
+    if (totalRevenue == 0) {
+      return const Center(child: Text('Belum ada data'));
+    }
+
+    return SizedBox(
+      height: math.max(160.0, data.length * 22.0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: CustomPaint(
+                painter: _DonutChartPainter(
+                  values: data.map((d) => d.revenue).toList(),
+                  colors: List.generate(data.length,
+                      (i) => _perfColors[i % _perfColors.length]),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(data.length, (i) {
+                final d = data[i];
+                final pct = (d.revenue / totalRevenue * 100);
+                final color = _perfColors[i % _perfColors.length];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(d.name,
+                            style: AppTextStyles.caption
+                                .copyWith(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      const SizedBox(width: 4),
+                      Text('${pct.toStringAsFixed(1)}%',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textHint)),
+                      const SizedBox(width: 4),
+                      Text(_compactCurrency(d.revenue),
+                          style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w700, fontSize: 10)),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────
   Widget _buildInsightRow(IconData icon, String label, String value) {
@@ -1001,41 +1506,87 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickAction(
-    BuildContext context, {
+  Widget _buildHeaderAction({
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md, horizontal: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: AppSpacing.xs),
-            Text(label,
-                style: AppTextStyles.bodySmall
-                    .copyWith(fontWeight: FontWeight.w600, color: color),
-                textAlign: TextAlign.center),
-          ],
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          splashColor: Colors.white24,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 20),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   // ═══════ Drawer (unchanged) ═══════
+  Future<void> _handleLogout(BuildContext context) async {
+    final session = ref.read(activeSessionProvider).valueOrNull;
+    final user = ref.read(currentUserProvider);
+    if (user?.role == 'cashier' && session != null) {
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Sesi Masih Aktif'),
+          content: const Text(
+            'Tutup sesi kasir terlebih dahulu sebelum logout.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await performLogout(ref);
+    if (context.mounted) context.go('/auth');
+  }
+
+  /// Open the multi-user PIN dialog. On success navigate to the
+  /// attendance screen with the verified user's id.
+  Future<void> _openAttendancePinDialog(BuildContext context) async {
+    final user = await AttendancePinDialog.show(context);
+    if (user == null || !context.mounted) return;
+    context.push('/attendance?userId=${user.id}');
+  }
+
   Widget _buildDrawer(BuildContext context, WidgetRef ref) {
     final activeSession = ref.watch(activeSessionProvider);
     final session = activeSession.valueOrNull;
+    final role = ref.watch(currentUserProvider)?.role ?? 'cashier';
 
     return Drawer(
       child: SafeArea(
@@ -1058,78 +1609,96 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ref.watch(currentStoreProvider)?.name ?? 'Kompak Store',
                       style: AppTextStyles.bodySmall
                           .copyWith(color: Colors.white.withOpacity(0.8))),
+                  if (ref.watch(currentUserProvider) != null)
+                    Text(
+                      '${ref.watch(currentUserProvider)!.name} (${role})',
+                      style: AppTextStyles.caption
+                          .copyWith(color: Colors.white.withOpacity(0.6)),
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _buildDrawerItem(
-                icon: Icons.point_of_sale_rounded,
-                label: 'POS',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/pos/catalog');
-                }),
-            _buildExpandableSection(context,
-                icon: Icons.assessment_rounded,
-                label: 'Laporan',
-                children: [
-                  _buildSubMenuItem(
-                      icon: Icons.access_time_rounded,
-                      label: 'Laporan Sesi',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/reports/sessions');
-                      }),
-                  _buildSubMenuItem(
-                      icon: Icons.list_alt_rounded,
-                      label: 'List Order',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/orders');
-                      }),
-                  _buildSubMenuItem(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Laporan Penjualan',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/reports/sales');
-                      }),
-                ]),
-            _buildExpandableSection(context,
-                icon: Icons.inventory_2_rounded,
-                label: 'Inventory',
-                children: [
-                  _buildSubMenuItem(
-                      icon: Icons.add_shopping_cart_rounded,
-                      label: 'Restock Inventory',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/inventory/restock');
-                      }),
-                  _buildSubMenuItem(
-                      icon: Icons.swap_horiz_rounded,
-                      label: 'Adjustment Inventory',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/inventory/adjustment');
-                      }),
-                  _buildSubMenuItem(
-                      icon: Icons.analytics_rounded,
-                      label: 'Laporan Inventory',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/inventory/report');
-                      }),
-                ]),
-            _buildDrawerItem(
-                icon: Icons.dashboard_rounded,
-                label: 'Dashboard',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/dashboard');
-                }),
+            if (Permissions.canAccessPOS(role))
+              _buildDrawerItem(
+                  icon: Icons.point_of_sale_rounded,
+                  label: 'POS',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/pos/catalog');
+                  }),
+            if (Permissions.canViewReports(role))
+              _buildExpandableSection(context,
+                  icon: Icons.assessment_rounded,
+                  label: 'Laporan',
+                  children: [
+                    _buildSubMenuItem(
+                        icon: Icons.access_time_rounded,
+                        label: 'Laporan Sesi',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/reports/sessions');
+                        }),
+                    _buildSubMenuItem(
+                        icon: Icons.list_alt_rounded,
+                        label: 'List Order',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/orders');
+                        }),
+                    _buildSubMenuItem(
+                        icon: Icons.bar_chart_rounded,
+                        label: 'Laporan Penjualan',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/reports/sales');
+                        }),
+                  ]),
+            if (Permissions.canViewInventory(role))
+              _buildExpandableSection(context,
+                  icon: Icons.inventory_2_rounded,
+                  label: 'Inventory',
+                  children: [
+                    _buildSubMenuItem(
+                        icon: Icons.add_shopping_cart_rounded,
+                        label: 'Restock Inventory',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/inventory/restock');
+                        }),
+                    _buildSubMenuItem(
+                        icon: Icons.swap_horiz_rounded,
+                        label: 'Adjustment Inventory',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/inventory/adjustment');
+                        }),
+                    _buildSubMenuItem(
+                        icon: Icons.analytics_rounded,
+                        label: 'Laporan Inventory',
+                        onTap: () {
+                          Navigator.pop(context);
+                          context.push('/inventory/report');
+                        }),
+                  ]),
+            if (Permissions.canViewKitchen(role))
+              _buildDrawerItem(
+                  icon: Icons.restaurant_rounded,
+                  label: 'Kitchen Display',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/kitchen');
+                  }),
+            if (Permissions.canViewDashboard(role))
+              _buildDrawerItem(
+                  icon: Icons.dashboard_rounded,
+                  label: 'Dashboard',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go('/dashboard');
+                  }),
             const Divider(),
-            if (session != null)
+            if (session != null && Permissions.canAccessPOS(role))
               _buildDrawerItem(
                   icon: Icons.point_of_sale_outlined,
                   label: 'Tutup Kasir',
@@ -1144,13 +1713,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           CloseRegisterDialog(sessionId: session.id),
                     );
                   }),
-            _buildDrawerItem(
-                icon: Icons.settings_rounded,
-                label: 'Settings',
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/settings');
-                }),
+            if (Permissions.canViewSettings(role))
+              _buildDrawerItem(
+                  icon: Icons.settings_rounded,
+                  label: 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/settings');
+                  }),
             const Spacer(),
             _buildDrawerItem(
                 icon: Icons.logout_rounded,
@@ -1158,11 +1728,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 color: AppColors.errorRed,
                 onTap: () async {
                   Navigator.pop(context);
-                  ref.read(cartProvider.notifier).clearCart();
-                  await ref.read(authServiceProvider).clearSession();
-                  ref.read(currentUserProvider.notifier).state = null;
-                  ref.read(currentStoreProvider.notifier).state = null;
-                  ref.read(currentStoreIdProvider.notifier).state = null;
+                  await performLogout(ref);
                   if (context.mounted) context.go('/auth');
                 }),
             const SizedBox(height: AppSpacing.md),
@@ -2241,6 +2807,107 @@ class _DonutChartPainter extends CustomPainter {
         paint,
       );
       startAngle += sweep;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+/// Line chart painter for performance comparison (entities on X axis)
+class _PerfLineChartPainter extends CustomPainter {
+  final List<_EntityPerformance> data;
+  final double maxValue;
+  final List<Color> colors;
+
+  _PerfLineChartPainter({
+    required this.data,
+    required this.maxValue,
+    required this.colors,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+    final w = size.width;
+    final h = size.height;
+    final stepX = data.length > 1 ? w / (data.length - 1) : w / 2;
+
+    // Grid lines
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE5E7EB)
+      ..strokeWidth = 0.5;
+    for (int i = 0; i <= 4; i++) {
+      final y = h - (h * i / 4);
+      canvas.drawLine(Offset(0, y), Offset(w, y), gridPaint);
+    }
+
+    // Build points
+    final points = <Offset>[];
+    for (int i = 0; i < data.length; i++) {
+      final x = data.length > 1 ? i * stepX : w / 2;
+      final y = h - (data[i].revenue / maxValue * h * 0.85) - h * 0.05;
+      points.add(Offset(x, y));
+    }
+
+    // Line path
+    final linePaint = Paint()
+      ..color = colors[0]
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    for (int i = 0; i < points.length; i++) {
+      if (i == 0) {
+        path.moveTo(points[i].dx, points[i].dy);
+      } else {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+    }
+
+    // Gradient fill
+    final fillPath = Path.from(path)
+      ..lineTo(points.last.dx, h)
+      ..lineTo(points.first.dx, h)
+      ..close();
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [colors[0].withOpacity(0.3), colors[0].withOpacity(0.02)],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, linePaint);
+
+    // Dots + value labels
+    for (int i = 0; i < points.length; i++) {
+      final pt = points[i];
+      final color = colors[i % colors.length];
+
+      canvas.drawCircle(pt, 4, Paint()..color = Colors.white);
+      canvas.drawCircle(pt, 3, Paint()..color = color);
+
+      final v = data[i].revenue;
+      String label;
+      if (v >= 1000000) {
+        label = '${(v / 1000000).toStringAsFixed(1)}jt';
+      } else if (v >= 1000) {
+        label = '${(v / 1000).toStringAsFixed(0)}rb';
+      } else {
+        label = v.toStringAsFixed(0);
+      }
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280)),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(pt.dx - tp.width / 2, pt.dy - tp.height - 6));
     }
   }
 

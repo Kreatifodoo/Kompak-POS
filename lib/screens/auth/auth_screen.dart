@@ -7,6 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/extensions.dart';
 import '../../modules/auth/auth_providers.dart';
+import '../../core/utils/permissions.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -80,7 +81,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (result != null) {
         _failedAttempts = 0;
         _lockoutUntil = null;
-        context.go('/dashboard');
+        // Navigate to default route. _isLoading stays true during transition
+        // so the button shows a spinner — reset it here as a safety net in case
+        // the widget is not replaced (e.g. same-route redirect edge case).
+        if (mounted) setState(() => _isLoading = false);
+        context.go(Permissions.defaultRoute(result.role));
       } else {
         _failedAttempts++;
         if (_failedAttempts >= 5) {

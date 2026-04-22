@@ -66,4 +66,15 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
               s.syncedAt.isSmallerThanValue(cutoff)))
         .go();
   }
+
+  /// BUG-SIT-003 FIX: Delete failed items that have exceeded max retries or
+  /// are older than [daysOld] days to prevent unbounded table growth when
+  /// the backend is unreachable.
+  Future<int> deleteOldFailed({int daysOld = 30, int maxRetries = 10}) {
+    final cutoff = DateTime.now().subtract(Duration(days: daysOld));
+    return customStatement(
+      'DELETE FROM sync_queue WHERE status = ? AND (retry_count >= ? OR created_at < ?)',
+      ['failed', maxRetries, cutoff.toIso8601String()],
+    ).then((_) => 0);
+  }
 }

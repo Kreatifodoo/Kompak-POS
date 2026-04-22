@@ -83,3 +83,12 @@ logs/
 # Misc
 *.tmp
 *.swp
+
+# APK release binaries
+release/*.apk
+
+# Supabase temp
+supabase/.temp/
+
+# Node
+node_modules/

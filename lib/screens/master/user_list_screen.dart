@@ -352,8 +352,12 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
 
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
+      case 'owner':
+        return AppColors.primaryOrange;
       case 'admin':
         return AppColors.infoBlue;
+      case 'branch_manager':
+        return Colors.deepPurple;
       case 'cashier':
         return AppColors.successGreen;
       case 'kitchen':

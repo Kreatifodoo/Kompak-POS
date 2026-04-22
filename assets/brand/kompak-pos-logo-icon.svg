@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="160" height="160" rx="36" fill="url(#iconGrad)"/>
+
+  <!-- Receipt body -->
+  <rect x="38" y="28" width="84" height="96" rx="6" fill="white" opacity="0.95"/>
+  <!-- Zigzag bottom -->
+  <polygon points="38,124 46,113 54,124 62,113 70,124 78,113 86,124 94,113 102,124 110,113 122,124" fill="white" opacity="0.95"/>
+  <!-- Header line -->
+  <rect x="50" y="42" width="60" height="6" rx="3" fill="#2563eb" opacity="0.25"/>
+  <!-- Content lines -->
+  <rect x="50" y="56" width="42" height="4" rx="2" fill="#94a3b8" opacity="0.6"/>
+  <rect x="50" y="66" width="52" height="4" rx="2" fill="#94a3b8" opacity="0.5"/>
+  <rect x="50" y="76" width="36" height="4" rx="2" fill="#94a3b8" opacity="0.5"/>
+  <rect x="50" y="86" width="48" height="4" rx="2" fill="#94a3b8" opacity="0.4"/>
+  <!-- Divider -->
+  <rect x="50" y="98" width="60" height="1" rx="0.5" fill="#e2e8f0"/>
+  <!-- Total -->
+  <rect x="50" y="106" width="60" height="7" rx="3.5" fill="#f97316" opacity="0.9"/>
+
+  <!-- Check badge -->
+  <circle cx="126" cy="34" r="18" fill="url(#accentGrad)"/>
+  <polyline points="117,34 123,40 135,26" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

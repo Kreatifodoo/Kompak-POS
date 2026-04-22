@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kompak POS — Admin Panel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f4f8;
+    color: #1e293b;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 580px;
+    padding: 36px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.07);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #1990B3, #0ea5e9);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 12px rgba(25,144,179,.3);
+  }
+  .logo-text h1 { font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.2; }
+  .logo-text p  { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 22px 0; }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #94a3b8;
+    margin-bottom: 14px;
+  }
+
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  label .req { color: #ef4444; margin-left: 2px; }
+
+  input, textarea {
+    width: 100%;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #0f172a;
+    font-size: 14px;
+    padding: 10px 13px;
+    outline: none;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  input::placeholder, textarea::placeholder { color: #cbd5e1; }
+  input:focus, textarea:focus {
+    border-color: #1990B3;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(25,144,179,.12);
+  }
+  textarea { resize: vertical; min-height: 72px; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field { margin-bottom: 16px; }
+  .hint { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+
+  .pass-wrap { position: relative; }
+  .pass-wrap input { padding-right: 42px; }
+  .eye-btn {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px;
+    line-height: 1; padding: 4px;
+  }
+  .eye-btn:hover { color: #475569; }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s, box-shadow .15s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, #1990B3, #0ea5e9);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(25,144,179,.35);
+  }
+  .btn-primary:not(:disabled):hover { opacity: .92; box-shadow: 0 6px 20px rgba(25,144,179,.4); }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Result card */
+  #result {
+    display: none;
+    margin-top: 24px;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 12px;
+    padding: 24px;
+  }
+  #result.error {
+    background: #fff1f2;
+    border-color: #fca5a5;
+  }
+  #result h2 {
+    font-size: 15px; font-weight: 700; color: #16a34a;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  #result.error h2 { color: #dc2626; }
+
+  .res-item { margin-bottom: 14px; }
+  .res-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: #64748b; margin-bottom: 5px;
+  }
+  .res-value {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: #0f172a;
+    word-break: break-all;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .copy-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background .12s;
+  }
+  .copy-btn:hover { background: #e2e8f0; color: #334155; }
+  .copy-btn.copied { background: #dcfce7; border-color: #86efac; color: #16a34a; }
+
+  .email-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 18px;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s, box-shadow .15s;
+    box-shadow: 0 4px 12px rgba(37,99,235,.3);
+  }
+  .email-btn:hover { background: #1d4ed8; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🏪</div>
+    <div class="logo-text">
+      <h1>Kompak POS</h1>
+      <p>Admin — Generate Lisensi &amp; Link Download</p>
+    </div>
+  </div>
+
+  <form id="form">
+    <p class="section-title">Autentikasi Admin</p>
+    <div class="field">
+      <label>Password Admin <span class="req">*</span></label>
+      <div class="pass-wrap">
+        <input type="password" id="password" placeholder="Password admin" autocomplete="current-password" />
+        <button type="button" class="eye-btn" onclick="togglePass()" title="Lihat password">👁</button>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <p class="section-title">Data Pelanggan</p>
+
+    <div class="row">
+      <div class="field">
+        <label>Nama Pelanggan <span class="req">*</span></label>
+        <input type="text" id="customer_name" placeholder="Budi Santoso" />
+      </div>
+      <div class="field">
+        <label>Nama Toko</label>
+        <input type="text" id="store_name" placeholder="Toko Maju Jaya" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Email Pelanggan <span class="req">*</span></label>
+      <input type="email" id="customer_email" placeholder="budi@example.com" />
+      <p class="hint">Untuk mengirim license key &amp; link download</p>
+    </div>
+
+    <hr class="divider" />
+    <p class="section-title">Konfigurasi Lisensi</p>
+
+    <div class="row">
+      <div class="field">
+        <label>Maks Perangkat</label>
+        <input type="number" id="max_devices" value="1" min="1" max="10" />
+        <p class="hint">Jumlah HP yang bisa aktif</p>
+      </div>
+      <div class="field">
+        <label>Masa Aktif (hari)</label>
+        <input type="number" id="expiry_days" value="0" min="0" />
+        <p class="hint">0 = tidak ada batas</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Link APK valid (hari)</label>
+        <input type="number" id="link_valid_days" value="7" min="1" />
+        <p class="hint">Kedaluwarsa link download</p>
+      </div>
+      <div class="field"></div>
+    </div>
+
+    <div class="field">
+      <label>URL APK <span class="req">*</span></label>
+      <input type="url" id="apk_url" value="https://qyxvxoavypqbiacinqbz.supabase.co/storage/v1/object/public/apk/kompak-pos-v1.0.8-arm64.apk" />
+      <p class="hint">Link direct download file .apk</p>
+    </div>
+
+    <div class="field">
+      <label>Catatan Internal</label>
+      <textarea id="notes" placeholder="Misal: Upgrade dari trial, referral dari Pak Andi..."></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="submit-btn">
+      ⚡ Generate Lisensi &amp; Link Download
+    </button>
+  </form>
+
+  <div id="result">
+    <h2 id="result-title">✅ Lisensi Berhasil Dibuat!</h2>
+    <div id="result-body"></div>
+  </div>
+</div>
+
+<script>
+  const EDGE_URL = 'https://qyxvxoavypqbiacinqbz.supabase.co/functions/v1/admin-create'
+
+  function togglePass() {
+    const el = document.getElementById('password')
+    el.type = el.type === 'password' ? 'text' : 'password'
+  }
+
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Copied'
+      btn.classList.add('copied')
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied') }, 2000)
+    })
+  }
+
+  function resItem(label, value, mono = true) {
+    const id = 'rv_' + Math.random().toString(36).slice(2)
+    return `
+      <div class="res-item">
+        <div class="res-label">${label}</div>
+        <div class="res-value">
+          <span id="${id}" style="${mono ? '' : 'font-family:inherit'}">${value}</span>
+          <button class="copy-btn" onclick="copyText(document.getElementById('${id}').textContent, this)">Copy</button>
+        </div>
+      </div>`
+  }
+
+  function buildEmailLink(data) {
+    const exp = data.expires_at
+      ? new Date(data.expires_at).toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})
+      : 'Tidak ada batas'
+    const tokenExp = new Date(data.token_expires_at).toLocaleDateString('id-ID', {day:'2-digit',month:'long',year:'numeric'})
+    const to      = encodeURIComponent(document.getElementById('customer_email').value.trim())
+    const subject = encodeURIComponent(`Aktivasi Kompak POS — ${data.customer_name}`)
+    const body    = encodeURIComponent(
+`Halo ${data.customer_name},
+
+Terima kasih telah menggunakan Kompak POS!
+Berikut informasi aktivasi aplikasi Anda:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+LICENSE KEY
+━━━━━━━━━━━━━━━━━━━━━━━━━
+${data.license_key}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+LINK DOWNLOAD APK
+━━━━━━━━━━━━━━━━━━━━━━━━━
+${data.download_url}
+
+PENTING: Link ini hanya bisa digunakan SATU KALI dan berlaku hingga ${tokenExp}.
+Segera download setelah menerima email ini.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+CARA AKTIVASI
+━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Klik link download di atas untuk mengunduh APK
+2. Install APK di HP Android Anda
+3. Buka aplikasi Kompak POS
+4. Masukkan License Key saat diminta
+5. Login menggunakan PIN Super Admin: 1234
+6. SEGERA ganti PIN setelah login pertama
+   (Settings > Pengguna > Edit Admin)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+INFO LISENSI
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Nama         : ${data.customer_name}${data.store_name ? '\nToko         : ' + data.store_name : ''}
+Masa aktif   : ${exp}
+Maks perangkat: ${data.max_devices} HP
+
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Butuh bantuan? Balas email ini atau hubungi tim support kami.
+
+Salam,
+Tim Kompak POS`)
+    return `mailto:${to}?subject=${subject}&body=${body}`
+  }
+
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const btn = document.getElementById('submit-btn')
+    const result = document.getElementById('result')
+
+    btn.disabled = true
+    btn.innerHTML = '<span class="spinner"></span> Memproses...'
+    result.style.display = 'none'
+
+    const payload = {
+      password:        document.getElementById('password').value,
+      customer_name:   document.getElementById('customer_name').value,
+      store_name:      document.getElementById('store_name').value,
+      max_devices:     document.getElementById('max_devices').value,
+      expiry_days:     document.getElementById('expiry_days').value,
+      link_valid_days: document.getElementById('link_valid_days').value,
+      apk_url:         document.getElementById('apk_url').value,
+      notes:           document.getElementById('notes').value,
+    }
+
+    try {
+      const res = await fetch(EDGE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+
+      result.style.display = 'block'
+      const title = document.getElementById('result-title')
+      const body  = document.getElementById('result-body')
+
+      if (!res.ok || data.error) {
+        result.className = 'error'
+        title.textContent = '❌ Gagal: ' + (data.error ?? 'Unknown error')
+        body.innerHTML = ''
+      } else {
+        result.className = ''
+        title.textContent = '✅ Lisensi Berhasil Dibuat!'
+
+        const tokenExp = new Date(data.token_expires_at).toLocaleString('id-ID')
+        const licExp   = data.expires_at
+          ? new Date(data.expires_at).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})
+          : 'Tidak ada batas'
+
+        const emailVal = document.getElementById('customer_email').value.trim()
+        const emailBadge = data.email_sent
+          ? `<div style="margin-top:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+               <span style="font-size:20px">✅</span>
+               <div>
+                 <div style="font-size:13px;font-weight:600;color:#16a34a">Email berhasil dikirim</div>
+                 <div style="font-size:12px;color:#15803d">ke ${emailVal}</div>
+               </div>
+             </div>`
+          : emailVal
+            ? `<div style="margin-top:16px;background:#fefce8;border:1.5px solid #fde047;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px">
+                 <span style="font-size:20px">⚠️</span>
+                 <div>
+                   <div style="font-size:13px;font-weight:600;color:#854d0e">Email gagal dikirim otomatis</div>
+                   <div style="font-size:12px;color:#713f12">${data.email_error || 'Cek konfigurasi Resend'}</div>
+                 </div>
+                 <a class="email-btn" href="${buildEmailLink(data)}" target="_blank" style="margin-top:10px;display:inline-block">
+                   ✉️ Kirim Manual
+                 </a>
+               </div>`
+            : `<p style="margin-top:14px;font-size:12px;color:#64748b;text-align:center">
+                 Isi Email Pelanggan agar email terkirim otomatis.
+               </p>`
+
+        body.innerHTML =
+          resItem('License Key', data.license_key) +
+          resItem('Download URL', data.download_url) +
+          resItem('Nama Pelanggan', data.customer_name + (data.store_name ? ' — ' + data.store_name : ''), false) +
+          resItem('Link kedaluwarsa', tokenExp, false) +
+          resItem('Masa aktif lisensi', licExp, false) +
+          resItem('Maks perangkat', data.max_devices, false) +
+          emailBadge
+      }
+    } catch (err) {
+      result.style.display = 'block'
+      result.className = 'error'
+      document.getElementById('result-title').textContent = '❌ Network Error'
+      document.getElementById('result-body').innerHTML = `<p style="color:#dc2626;font-size:13px">${err.message}</p>`
+    } finally {
+      btn.disabled = false
+      btn.innerHTML = '⚡ Generate Lisensi &amp; Link Download'
+      result.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  })
+</script>
+</body>
+</html>

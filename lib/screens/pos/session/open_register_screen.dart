@@ -7,9 +7,11 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/extensions.dart';
+import '../../../core/database/app_database.dart';
 import '../../../modules/auth/auth_providers.dart';
 import '../../../modules/core_providers.dart';
 import '../../../modules/pos_session/pos_session_providers.dart';
+import '../../../modules/terminal/terminal_providers.dart';
 
 class OpenRegisterScreen extends ConsumerStatefulWidget {
   const OpenRegisterScreen({super.key});
@@ -21,8 +23,18 @@ class OpenRegisterScreen extends ConsumerStatefulWidget {
 class _OpenRegisterScreenState extends ConsumerState<OpenRegisterScreen> {
   String _cashInput = '0';
   bool _isLoading = false;
+  String? _selectedTerminalId; // For admin/owner terminal selection
 
   double get _cashAmount => double.tryParse(_cashInput) ?? 0;
+
+  /// Whether this user needs to pick a terminal (admin/owner without assigned terminal)
+  bool get _needsTerminalSelection {
+    final user = ref.read(currentUserProvider);
+    final assignedTerminal = ref.read(currentTerminalIdProvider);
+    if (assignedTerminal != null) return false;
+    final role = user?.role ?? '';
+    return ['owner', 'admin', 'branch_manager'].contains(role);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +54,16 @@ class _OpenRegisterScreenState extends ConsumerState<OpenRegisterScreen> {
               ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
+            tooltip: 'Logout',
+            onPressed: () async {
+              await performLogout(ref);
+              if (context.mounted) context.go('/auth');
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -74,7 +96,12 @@ class _OpenRegisterScreenState extends ConsumerState<OpenRegisterScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
+
+          // Terminal selector for admin/owner without assigned terminal
+          if (_needsTerminalSelection) _buildTerminalSelector(),
+
+          const SizedBox(height: AppSpacing.md),
 
           // Amount display
           Container(
@@ -129,6 +156,93 @@ class _OpenRegisterScreenState extends ConsumerState<OpenRegisterScreen> {
           _buildOpenButton(),
         ],
       ),
+    );
+  }
+
+  Widget _buildTerminalSelector() {
+    final storeId = ref.watch(currentStoreIdProvider);
+    if (storeId == null) return const SizedBox.shrink();
+
+    final terminalsAsync = ref.watch(activeTerminalsProvider(storeId));
+
+    return terminalsAsync.when(
+      data: (terminals) {
+        if (terminals.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.warningAmber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warningAmber.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: AppColors.warningAmber, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Belum ada terminal. Buat terminal di Settings → Kelola Terminal.',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.warningAmber),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Auto-select first terminal if nothing selected
+        _selectedTerminalId ??= terminals.first.id;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceGrey,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedTerminalId,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                style: AppTextStyles.bodyMedium,
+                hint: Text('Pilih Terminal',
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.textHint)),
+                items: terminals
+                    .map((t) => DropdownMenuItem(
+                          value: t.id,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.point_of_sale_rounded,
+                                  size: 18, color: AppColors.primaryOrange),
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(t.name),
+                              if (t.code.isNotEmpty) ...[
+                                const SizedBox(width: AppSpacing.xs),
+                                Text('(${t.code})',
+                                    style: AppTextStyles.caption
+                                        .copyWith(color: AppColors.textHint)),
+                              ],
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _selectedTerminalId = value),
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -298,15 +412,24 @@ class _OpenRegisterScreenState extends ConsumerState<OpenRegisterScreen> {
         return;
       }
 
-      // Multi-terminal: use assigned terminal, fallback to legacy generated ID
-      final String terminalId =
-          ref.read(currentTerminalIdProvider) ?? ref.read(terminalIdProvider);
+      // Multi-terminal: use assigned terminal, admin-selected, or legacy fallback
+      final String terminalId = ref.read(currentTerminalIdProvider) ??
+          _selectedTerminalId ??
+          ref.read(terminalIdProvider);
       await service.openSession(
         storeId: storeId,
         cashierId: currentUser.id,
         terminalId: terminalId,
         openingCash: _cashAmount,
       );
+
+      // Set terminal context if admin selected a terminal
+      if (_selectedTerminalId != null && ref.read(currentTerminalIdProvider) == null) {
+        ref.read(currentTerminalIdProvider.notifier).state = _selectedTerminalId;
+        final db = ref.read(databaseProvider);
+        final terminal = await db.terminalDao.getById(_selectedTerminalId!);
+        ref.read(currentTerminalProvider.notifier).state = terminal;
+      }
 
       ref.invalidate(activeSessionProvider);
       // ISS-023: Navigate explicitly after opening register

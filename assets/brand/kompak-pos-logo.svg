@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 160" width="480" height="160">
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon background -->
+  <rect x="16" y="16" width="128" height="128" rx="28" fill="url(#iconGrad)"/>
+
+  <!-- Receipt / POS icon -->
+  <!-- Receipt body -->
+  <rect x="46" y="36" width="68" height="82" rx="5" fill="white" opacity="0.95"/>
+  <!-- Receipt zigzag bottom -->
+  <polygon points="46,118 52,110 58,118 64,110 70,118 76,110 82,118 88,110 94,118 100,110 106,118 112,110 114,118" fill="white" opacity="0.95"/>
+  <!-- Lines on receipt -->
+  <rect x="56" y="50" width="48" height="5" rx="2.5" fill="#2563eb" opacity="0.3"/>
+  <rect x="56" y="62" width="32" height="4" rx="2" fill="#2563eb" opacity="0.2"/>
+  <rect x="56" y="72" width="40" height="4" rx="2" fill="#2563eb" opacity="0.2"/>
+  <rect x="56" y="82" width="36" height="4" rx="2" fill="#2563eb" opacity="0.2"/>
+  <!-- Total line -->
+  <rect x="56" y="96" width="48" height="5" rx="2.5" fill="#f97316" opacity="0.8"/>
+
+  <!-- Orange accent dot top-right of icon -->
+  <circle cx="122" cy="34" r="14" fill="url(#accentGrad)"/>
+  <!-- Check mark in orange dot -->
+  <polyline points="115,34 120,39 130,28" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Brand text: KOMPAK -->
+  <text x="168" y="82" font-family="Arial, sans-serif" font-weight="800" font-size="52" fill="#0f172a" letter-spacing="-1">KOMPAK</text>
+  <!-- POS badge -->
+  <rect x="168" y="96" width="72" height="28" rx="6" fill="url(#accentGrad)"/>
+  <text x="177" y="116" font-family="Arial, sans-serif" font-weight="800" font-size="18" fill="white" letter-spacing="3">POS</text>
+  <!-- Tagline -->
+  <text x="250" y="114" font-family="Arial, sans-serif" font-weight="400" font-size="13" fill="#64748b" letter-spacing="0.5">Kasir Digital untuk Bisnis Anda</text>
+</svg>

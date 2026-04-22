@@ -30,6 +30,10 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
   bool _isLoading = false;
   bool _isLoaded = false;
 
+  /// The store/branch this terminal belongs to.
+  /// Defaults to currentStoreId; HQ users can change this via dropdown.
+  String? _selectedStoreId;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +63,7 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
           _nameController.text = terminal.name;
           _codeController.text = terminal.code;
           _isActive = terminal.isActive;
+          _selectedStoreId = terminal.storeId;
           _isLoaded = true;
           _isLoading = false;
         });
@@ -78,9 +83,12 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final storeId = ref.read(currentStoreIdProvider);
+    final currentStoreId = ref.read(currentStoreIdProvider);
+    // STRUCT-001 FIX: use _selectedStoreId (chosen branch) if available,
+    // otherwise fall back to currentStoreId (non-HQ users).
+    final storeId = _selectedStoreId ?? currentStoreId;
     if (storeId == null) {
-      context.showSnackBar('No store selected', isError: true);
+      context.showSnackBar('Pilih cabang terlebih dahulu', isError: true);
       return;
     }
 
@@ -107,7 +115,7 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
         );
       }
 
-      // Invalidate terminals provider
+      // Invalidate terminals provider for the affected store
       ref.invalidate(terminalsProvider(storeId));
 
       if (mounted) {
@@ -157,7 +165,7 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
     try {
       final service = ref.read(terminalServiceProvider);
       await service.deleteTerminal(widget.terminalId!);
-      final storeId = ref.read(currentStoreIdProvider);
+      final storeId = _selectedStoreId ?? ref.read(currentStoreIdProvider);
       if (storeId != null) ref.invalidate(terminalsProvider(storeId));
       if (mounted) {
         context.showSnackBar('Terminal dihapus');
@@ -172,6 +180,14 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isHQ = ref.watch(isHQUserProvider);
+    final currentStoreId = ref.watch(currentStoreIdProvider);
+
+    // Initialise _selectedStoreId on first build for new terminal
+    if (!widget.isEditing && _selectedStoreId == null && currentStoreId != null) {
+      _selectedStoreId = currentStoreId;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldWhite,
       appBar: AppBar(
@@ -202,6 +218,12 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
+                  // ── STRUCT-001 FIX: Branch selector for HQ users ──
+                  if (isHQ) ...[
+                    _buildBranchSelector(currentStoreId),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
                   // Name field
                   Text('Nama Terminal',
                       style: AppTextStyles.bodyMedium
@@ -402,6 +424,97 @@ class _TerminalFormScreenState extends ConsumerState<TerminalFormScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  /// Branch selector dropdown — only shown to HQ users when creating/editing terminals.
+  Widget _buildBranchSelector(String? currentStoreId) {
+    final branchesAsync = ref.watch(branchesProvider);
+    final currentStore = ref.watch(currentStoreProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cabang / Toko',
+            style: AppTextStyles.bodyMedium
+                .copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: AppSpacing.sm),
+        branchesAsync.when(
+          data: (branches) {
+            final items = <DropdownMenuItem<String>>[];
+
+            // HQ itself as an option
+            if (currentStoreId != null && currentStore != null) {
+              items.add(DropdownMenuItem(
+                value: currentStoreId,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.store_mall_directory_rounded,
+                        size: 18, color: AppColors.primaryOrange),
+                    const SizedBox(width: 8),
+                    Text('${currentStore.name} (HQ)'),
+                  ],
+                ),
+              ));
+            }
+
+            // Branch options
+            for (final branch in branches) {
+              items.add(DropdownMenuItem(
+                value: branch.id,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.store_rounded,
+                        size: 18, color: Colors.teal),
+                    const SizedBox(width: 8),
+                    Text(branch.name),
+                  ],
+                ),
+              ));
+            }
+
+            return DropdownButtonFormField<String>(
+              value: _selectedStoreId,
+              validator: (v) => v == null ? 'Pilih cabang' : null,
+              onChanged: widget.isEditing
+                  ? null // cannot move terminal to another branch while editing
+                  : (value) => setState(() => _selectedStoreId = value),
+              style: AppTextStyles.bodyMedium,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.store_rounded,
+                    color: AppColors.textSecondary, size: 20),
+                hintText: 'Pilih cabang untuk terminal ini',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderGrey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderGrey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                      color: AppColors.primaryOrange, width: 1.5),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderGrey),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md, vertical: AppSpacing.md),
+              ),
+              items: items,
+            );
+          },
+          loading: () => const LinearProgressIndicator(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }

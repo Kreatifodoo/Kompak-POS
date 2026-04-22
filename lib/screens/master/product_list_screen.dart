@@ -13,6 +13,7 @@ import '../../core/utils/formatters.dart';
 import '../../core/database/app_database.dart';
 import '../../modules/core_providers.dart';
 import '../../modules/product/product_providers.dart';
+import 'barcode_label_screen.dart';
 
 class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen({super.key});
@@ -271,8 +272,22 @@ class _ProductTile extends StatelessWidget {
     return Slidable(
       endActionPane: ActionPane(
         motion: const BehindMotion(),
-        extentRatio: 0.25,
+        extentRatio: 0.5,
         children: [
+          SlidableAction(
+            onPressed: (_) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BarcodeLabelScreen(product: product),
+                ),
+              );
+            },
+            backgroundColor: AppColors.infoBlue,
+            foregroundColor: Colors.white,
+            icon: Icons.qr_code_rounded,
+            label: 'Label',
+          ),
           SlidableAction(
             onPressed: (_) => onDelete(),
             backgroundColor: AppColors.errorRed,

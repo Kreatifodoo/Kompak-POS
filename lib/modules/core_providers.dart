@@ -19,6 +19,13 @@ import '../services/combo_service.dart';
 import '../services/bom_service.dart';
 import '../services/pos_session_service.dart';
 import '../services/terminal_service.dart';
+import '../services/store_service.dart';
+import '../services/telegram_service.dart';
+import '../services/csv_export_service.dart';
+import '../services/pos_query_service.dart';
+import '../services/telegram_chatbot_service.dart';
+import '../services/attendance_service.dart';
+import '../services/backup_service.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -99,8 +106,55 @@ final terminalServiceProvider = Provider<TerminalService>((ref) {
   return TerminalService(ref.watch(databaseProvider));
 });
 
-// ISS-015: Dynamic terminalId (generated on first launch, persisted)
-// Kept as fallback for standalone mode (user not assigned to a terminal)
+final storeServiceProvider = Provider<StoreService>((ref) {
+  return StoreService(ref.watch(databaseProvider));
+});
+
+final telegramServiceProvider = Provider<TelegramService>((ref) {
+  return TelegramService(
+    prefs: ref.watch(sharedPreferencesProvider),
+  );
+});
+
+final csvExportServiceProvider = Provider<CsvExportService>((ref) {
+  return CsvExportService(ref.watch(databaseProvider));
+});
+
+final posQueryServiceProvider = Provider<PosQueryService>((ref) {
+  return PosQueryService(ref.watch(databaseProvider));
+});
+
+final telegramChatbotServiceProvider = Provider<TelegramChatbotService>((ref) {
+  // Use ref.read() to avoid recreating service when dependencies rebuild.
+  // This service holds a Timer for polling — must be a stable singleton.
+  ref.keepAlive();
+  final service = TelegramChatbotService(
+    prefs: ref.read(sharedPreferencesProvider),
+    db: ref.read(databaseProvider),
+    queryService: ref.read(posQueryServiceProvider),
+    csvService: ref.read(csvExportServiceProvider),
+  );
+  ref.onDispose(() => service.stopPolling());
+  return service;
+});
+
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(
+    db: ref.watch(databaseProvider),
+    telegram: ref.watch(telegramServiceProvider),
+  );
+});
+
+final attendanceServiceProvider = Provider<AttendanceService>((ref) {
+  return AttendanceService(
+    db: ref.watch(databaseProvider),
+    telegram: ref.watch(telegramServiceProvider),
+  );
+});
+
+// @deprecated — Use currentTerminalIdProvider instead.
+// Legacy fallback for standalone mode (user not assigned to a terminal).
+// Will be removed in a future version.
 final terminalIdProvider = Provider<String>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   const key = 'terminal_id';
@@ -119,3 +173,8 @@ final currentTerminalIdProvider = StateProvider<String?>((ref) => null);
 
 /// Current terminal object for the active session.
 final currentTerminalProvider = StateProvider<Terminal?>((ref) => null);
+
+/// Selected terminal filter for report screens (null = all terminals).
+/// Defined here (not in order_providers) to avoid circular imports when
+/// auth_providers needs to clear it on logout.
+final selectedTerminalFilterProvider = StateProvider<String?>((ref) => null);

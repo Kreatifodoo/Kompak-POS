@@ -110,7 +110,58 @@ class StoreService {
     ));
   }
 
+  /// Delete a branch and all its dependent data atomically.
+  /// BUG-MULTI-004 FIX: Without cascade, deleting a branch leaves orphaned
+  /// terminals, users, products, inventory, categories, etc.
   Future<void> deleteBranch(String id) async {
-    await db.storeDao.deleteStore(id);
+    await db.transaction(() async {
+      // Delete inventory for products belonging to this store
+      await db.customStatement(
+        'DELETE FROM inventory WHERE product_id IN '
+        '(SELECT id FROM products WHERE store_id = ?)',
+        [id],
+      );
+      // Delete BOM items for products in this store
+      await db.customStatement(
+        'DELETE FROM bom_items WHERE product_id IN '
+        '(SELECT id FROM products WHERE store_id = ?)',
+        [id],
+      );
+      // Delete pricelist items for pricelists in this store
+      await db.customStatement(
+        'DELETE FROM pricelist_items WHERE pricelist_id IN '
+        '(SELECT id FROM pricelists WHERE store_id = ?)',
+        [id],
+      );
+      // Delete inventory movements for products in this store
+      await db.customStatement(
+        'DELETE FROM inventory_movements WHERE product_id IN '
+        '(SELECT id FROM products WHERE store_id = ?)',
+        [id],
+      );
+      // Delete all store-scoped entities
+      await db.customStatement(
+          'DELETE FROM product_extras WHERE product_id IN '
+          '(SELECT id FROM products WHERE store_id = ?)',
+          [id]);
+      await db.customStatement(
+          'DELETE FROM combo_groups WHERE product_id IN '
+          '(SELECT id FROM products WHERE store_id = ?)',
+          [id]);
+      await db.customStatement('DELETE FROM products WHERE store_id = ?', [id]);
+      await db.customStatement(
+          'DELETE FROM categories WHERE store_id = ?', [id]);
+      await db.customStatement('DELETE FROM terminals WHERE store_id = ?', [id]);
+      await db.customStatement('DELETE FROM users WHERE store_id = ?', [id]);
+      await db.customStatement(
+          'DELETE FROM payment_methods WHERE store_id = ?', [id]);
+      await db.customStatement('DELETE FROM charges WHERE store_id = ?', [id]);
+      await db.customStatement(
+          'DELETE FROM promotions WHERE store_id = ?', [id]);
+      await db.customStatement(
+          'DELETE FROM pricelists WHERE store_id = ?', [id]);
+      // Delete the store record itself
+      await db.storeDao.deleteStore(id);
+    });
   }
 }

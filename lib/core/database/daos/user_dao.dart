@@ -32,4 +32,27 @@ class UserDao extends DatabaseAccessor<AppDatabase> with _$UserDaoMixin {
 
   Stream<List<User>> watchUsersByStore(String storeId) =>
       (select(users)..where((u) => u.storeId.equals(storeId))).watch();
+
+  /// Returns all active users that are allowed to use the multi-user
+  /// attendance flow. Owner / admin / branch_manager roles are always
+  /// allowed; other roles must have the [canAccessAttendance] flag enabled.
+  Future<List<User>> getUsersWithAttendanceAccess({String? storeId}) {
+    final query = select(users)
+      ..where((u) =>
+          u.isActive.equals(true) &
+          (u.canAccessAttendance.equals(true) |
+              u.role.isIn(['owner', 'admin', 'branch_manager'])));
+    if (storeId != null) {
+      query.where((u) =>
+          u.storeId.equals(storeId) | u.storeId.isNull());
+    }
+    return query.get();
+  }
+
+  /// Quick check whether a user is permitted to use attendance.
+  bool canAccessAttendance(User user) {
+    if (!user.isActive) return false;
+    if (user.canAccessAttendance) return true;
+    return const ['owner', 'admin', 'branch_manager'].contains(user.role);
+  }
 }

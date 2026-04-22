@@ -10,6 +10,7 @@ import '../../core/utils/validators.dart';
 import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/terminal/terminal_providers.dart';
+import '../../modules/rbac/rbac_providers.dart';
 
 class UserFormScreen extends ConsumerStatefulWidget {
   final String? userId;
@@ -26,10 +27,15 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   late TextEditingController _pinController;
   String _selectedRole = 'cashier';
   String? _selectedTerminalId;
+  /// STRUCT-003 FIX: storeId for the user being created/edited.
+  /// For HQ users this is the selected branch; for others it's the current store.
+  /// When a terminal is selected its storeId overrides this.
+  String? _selectedStoreId;
   bool _obscurePin = true;
   bool _isSaving = false;
   bool _isLoading = false;
   bool _isLoaded = false;
+  bool _canAccessAttendance = false;
 
   bool get _isEditMode => widget.userId != null;
 
@@ -65,6 +71,8 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           _pinController.text = '';
           _selectedRole = user.role;
           _selectedTerminalId = user.terminalId;
+          _selectedStoreId = user.storeId;
+          _canAccessAttendance = user.canAccessAttendance;
           _isLoaded = true;
           _isLoading = false;
         });
@@ -84,9 +92,12 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   Future<void> _saveUser() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final storeId = ref.read(currentStoreIdProvider);
+    final currentStoreId = ref.read(currentStoreIdProvider);
+    // STRUCT-003 FIX: use _selectedStoreId (chosen branch / terminal's store)
+    // so the user is scoped to the correct branch, not always the HQ.
+    final storeId = _selectedStoreId ?? currentStoreId;
     if (storeId == null) {
-      context.showSnackBar('No store selected', isError: true);
+      context.showSnackBar('Pilih cabang terlebih dahulu', isError: true);
       return;
     }
 
@@ -121,6 +132,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           role: _selectedRole,
           storeId: storeId,
           terminalId: _selectedTerminalId,
+          canAccessAttendance: _canAccessAttendance,
         );
       } else {
         await userService.createUser(
@@ -129,6 +141,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           role: _selectedRole,
           storeId: storeId,
           terminalId: _selectedTerminalId,
+          canAccessAttendance: _canAccessAttendance,
         );
       }
 
@@ -200,6 +213,14 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isHQ = ref.watch(isHQUserProvider);
+    final currentStoreId = ref.watch(currentStoreIdProvider);
+
+    // Initialise _selectedStoreId on first build for new user (non-edit)
+    if (!_isEditMode && _selectedStoreId == null && currentStoreId != null) {
+      _selectedStoreId = currentStoreId;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldWhite,
       appBar: AppBar(
@@ -242,6 +263,12 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
 
+                    // STRUCT-003 FIX: Branch selector for HQ users
+                    if (isHQ) ...[
+                      _buildBranchSelector(currentStoreId),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+
                     // Name field
                     _buildFormField(
                       label: 'Name',
@@ -263,6 +290,10 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                       const SizedBox(height: AppSpacing.md),
                       _buildTerminalDropdown(),
                     ],
+
+                    // Multi-user attendance access toggle
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildAttendanceAccessTile(),
 
                     const SizedBox(height: AppSpacing.xl),
 
@@ -526,20 +557,38 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                 vertical: AppSpacing.md,
               ),
             ),
-            items: const [
-              DropdownMenuItem(
-                value: 'admin',
-                child: Text('Admin'),
-              ),
-              DropdownMenuItem(
-                value: 'cashier',
-                child: Text('Cashier'),
-              ),
-              DropdownMenuItem(
-                value: 'kitchen',
-                child: Text('Kitchen'),
-              ),
-            ],
+            items: ref
+                .watch(availableRolesProvider(
+                    ref.watch(currentStoreIdProvider)))
+                .when(
+                  data: (roles) => roles
+                      .where((r) {
+                        // Only owner can assign owner role
+                        if (r.id == 'owner' &&
+                            ref.watch(currentUserProvider)?.role !=
+                                'owner') {
+                          return false;
+                        }
+                        return true;
+                      })
+                      .map((r) => DropdownMenuItem(
+                            value: r.id,
+                            child: Text(r.name),
+                          ))
+                      .toList(),
+                  loading: () => [
+                    DropdownMenuItem(
+                      value: _selectedRole,
+                      child: Text(_selectedRole),
+                    )
+                  ],
+                  error: (_, __) => [
+                    DropdownMenuItem(
+                      value: _selectedRole,
+                      child: Text(_selectedRole),
+                    )
+                  ],
+                ),
           ),
         ],
       ),
@@ -547,8 +596,21 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   }
 
   Widget _buildTerminalDropdown() {
-    final storeId = ref.watch(currentStoreIdProvider);
-    if (storeId == null) return const SizedBox.shrink();
+    // STRUCT-003 FIX: Use the selected branch/store's terminals, not always
+    // currentStoreId. This ensures HQ can assign users to branch terminals.
+    final storeId = _selectedStoreId;
+    if (storeId == null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Text(
+          'Pilih cabang terlebih dahulu untuk melihat terminal.',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.warningAmber,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
 
     final terminalsAsync = ref.watch(terminalsProvider(storeId));
 
@@ -558,7 +620,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
-              'Belum ada terminal. Buat terminal di "Kelola Terminal" terlebih dahulu.',
+              'Belum ada terminal di cabang ini. Buat terminal di "Kelola Terminal" terlebih dahulu.',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.warningAmber,
                 fontStyle: FontStyle.italic,
@@ -584,7 +646,15 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
                     ? _selectedTerminalId
                     : null,
                 onChanged: (value) {
-                  setState(() => _selectedTerminalId = value);
+                  setState(() {
+                    _selectedTerminalId = value;
+                    // STRUCT-003 FIX: derive storeId from selected terminal
+                    // so user.storeId is always the terminal's branch.
+                    if (value != null) {
+                      final terminal = terminals.firstWhere((t) => t.id == value);
+                      _selectedStoreId = terminal.storeId;
+                    }
+                  });
                 },
                 style: AppTextStyles.bodyMedium,
                 decoration: InputDecoration(
@@ -630,6 +700,151 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  /// Toggle to grant this user access to the multi-user attendance flow.
+  /// Owner / Admin / Branch Manager are auto-allowed via UserDao helper —
+  /// this toggle is mainly for cashiers / kitchen / kurir staff.
+  Widget _buildAttendanceAccessTile() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.borderGrey),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.successGreen.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.fingerprint_rounded,
+                color: AppColors.successGreen, size: 20),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Akses Absensi (PIN)',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Izinkan user ini absen via PIN dari halaman utama',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _canAccessAttendance,
+            onChanged: (v) => setState(() => _canAccessAttendance = v),
+            activeColor: AppColors.successGreen,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Branch selector for HQ users — sets _selectedStoreId and clears terminal.
+  Widget _buildBranchSelector(String? currentStoreId) {
+    final branchesAsync = ref.watch(branchesProvider);
+    final currentStore = ref.watch(currentStoreProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cabang',
+            style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          branchesAsync.when(
+            data: (branches) {
+              final items = <DropdownMenuItem<String>>[];
+              if (currentStoreId != null && currentStore != null) {
+                items.add(DropdownMenuItem(
+                  value: currentStoreId,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.store_mall_directory_rounded,
+                          size: 18, color: AppColors.primaryOrange),
+                      const SizedBox(width: 8),
+                      Text('${currentStore.name} (HQ)'),
+                    ],
+                  ),
+                ));
+              }
+              for (final branch in branches) {
+                items.add(DropdownMenuItem(
+                  value: branch.id,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.store_rounded,
+                          size: 18, color: Colors.teal),
+                      const SizedBox(width: 8),
+                      Text(branch.name),
+                    ],
+                  ),
+                ));
+              }
+
+              return DropdownButtonFormField<String>(
+                value: _selectedStoreId,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedStoreId = value;
+                    // Clear terminal when branch changes
+                    _selectedTerminalId = null;
+                  });
+                },
+                style: AppTextStyles.bodyMedium,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.store_rounded,
+                      color: AppColors.textSecondary, size: 20),
+                  hintText: 'Pilih cabang untuk user ini',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.borderGrey),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.borderGrey),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                        color: AppColors.primaryOrange, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.md,
+                  ),
+                ),
+                items: items,
+              );
+            },
+            loading: () => const LinearProgressIndicator(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -41,8 +41,9 @@ class SyncEngine {
         }
       }
 
-      // Cleanup old synced items
+      // Cleanup old synced + permanently-failed items
       await db.syncQueueDao.deleteOldSynced();
+      await db.syncQueueDao.deleteOldFailed(); // BUG-SIT-003 FIX
       AppLogger.info('Sync completed');
     } catch (e) {
       AppLogger.error('Sync engine error', e);

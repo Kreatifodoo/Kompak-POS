@@ -19,6 +19,7 @@ import '../../core/database/app_database.dart';
 import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/product/product_providers.dart';
+import 'barcode_label_screen.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -259,6 +260,21 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     }
   }
 
+  void _openBarcodeLabelPrint() {
+    if (!widget.isEditing) return;
+    final db = ref.read(databaseProvider);
+    db.productDao.getById(widget.productId!).then((product) {
+      if (product != null && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BarcodeLabelScreen(product: product),
+          ),
+        );
+      }
+    });
+  }
+
   Future<void> _deleteProduct() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -414,7 +430,24 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   const SizedBox(height: AppSpacing.md),
 
                   // Barcode
-                  _buildLabel('Barcode (optional)'),
+                  Row(
+                    children: [
+                      Expanded(child: _buildLabel('Barcode (optional)')),
+                      if (widget.isEditing)
+                        TextButton.icon(
+                          onPressed: () => _openBarcodeLabelPrint(),
+                          icon: const Icon(Icons.qr_code_rounded, size: 16),
+                          label: const Text('Print Label'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.infoBlue,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            textStyle: AppTextStyles.bodySmall.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   TextFormField(
                     controller: _barcodeController,

@@ -518,6 +518,45 @@ class _CloseRegisterDialogState extends ConsumerState<CloseRegisterDialog> {
         }
       }
 
+      // Telegram report (non-blocking — session is already closed)
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (prefs.getBool('telegram_enabled') ?? false) {
+        try {
+          final telegramService = ref.read(telegramServiceProvider);
+          final csvService = ref.read(csvExportServiceProvider);
+          final store = ref.read(currentStoreProvider);
+          final terminal = ref.read(currentTerminalProvider);
+          final reportForTg = await service.generateReport(widget.sessionId);
+          final topProducts = await ref
+              .read(databaseProvider)
+              .posSessionDao
+              .getTopProductsForSession(widget.sessionId);
+          final csvFile =
+              await csvService.generateSessionCsv(widget.sessionId);
+
+          await telegramService.sendSessionReport(
+            report: reportForTg,
+            storeName: store?.name ?? 'Kompak Store',
+            terminalName: terminal?.name ?? '-',
+            topProducts: topProducts,
+          );
+          await telegramService.sendSessionCsv(csvFile);
+        } catch (e) {
+          if (mounted) {
+            context.showSnackBar('Telegram gagal: $e', isError: true);
+          }
+        }
+      }
+
+      // Send pending attendance records & cleanup old data
+      try {
+        final attendanceService = ref.read(attendanceServiceProvider);
+        await attendanceService.sendPendingToTelegram();
+        await attendanceService.cleanupOldAttendance();
+      } catch (_) {
+        // Non-critical — don't block session close
+      }
+
       // Clear cart and invalidate providers
       ref.read(cartProvider.notifier).clearCart();
       ref.invalidate(activeSessionProvider);

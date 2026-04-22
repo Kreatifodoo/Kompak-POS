@@ -210,6 +210,20 @@ class ReceiptScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        // Per-unit price (when qty > 1 or pricelist discount)
+                        if (item.quantity > 1 ||
+                            (item.originalPrice != null &&
+                                item.originalPrice! > item.productPrice))
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 32, bottom: 1),
+                            child: Text(
+                              '@${Formatters.currency(item.productPrice)}/pcs',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textHint,
+                              ),
+                            ),
+                          ),
                         // Combo selections
                         if (item.extrasJson != null &&
                             item.extrasJson!.isNotEmpty)
@@ -569,6 +583,7 @@ class ReceiptScreen extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   onPressed: () async {
                     await _printReceipt(context, ref, order, items, payment);
+                    if (context.mounted) context.go('/pos/catalog');
                   },
                   icon: const Icon(Icons.print_rounded),
                   label: Text(
@@ -660,6 +675,7 @@ class ReceiptScreen extends ConsumerWidget {
           return;
         }
 
+        final currentTerminal = ref.read(currentTerminalProvider);
         final bytes = await receiptService.generateReceipt(
           storeName: currentStore?.name ?? 'Kompak Store',
           storeAddress: currentStore?.address ?? '',
@@ -671,6 +687,7 @@ class ReceiptScreen extends ConsumerWidget {
           customerName: customerName,
           receiptHeader: currentStore?.receiptHeader,
           receiptFooter: currentStore?.receiptFooter,
+          terminalName: currentTerminal?.name,
         );
 
         final success = await printerService.printReceipt(bytes);

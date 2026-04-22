@@ -23,6 +23,7 @@ class UserService {
     required String role,
     String? storeId,
     String? terminalId,
+    bool canAccessAttendance = false,
   }) async {
     final id = _uuid.v4();
     final hashedPin = PinHash.hash(pin);
@@ -33,6 +34,7 @@ class UserService {
       role: Value(role),
       storeId: Value(storeId),
       terminalId: Value(terminalId),
+      canAccessAttendance: Value(canAccessAttendance),
     ));
     return id;
   }
@@ -45,6 +47,7 @@ class UserService {
     String? storeId,
     String? terminalId,
     bool isActive = true,
+    bool? canAccessAttendance,
   }) async {
     // If pin is null or empty, keep the existing PIN
     String? finalPin;
@@ -63,6 +66,8 @@ class UserService {
       storeId: Value(storeId),
       terminalId: Value(terminalId),
       isActive: Value(isActive),
+      canAccessAttendance:
+          Value(canAccessAttendance ?? user.canAccessAttendance),
     ));
   }
 

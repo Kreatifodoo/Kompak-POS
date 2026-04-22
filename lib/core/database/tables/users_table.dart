@@ -8,6 +8,8 @@ class Users extends Table {
   TextColumn get role => text().withDefault(const Constant('cashier'))();
   TextColumn get terminalId => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get canAccessAttendance =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

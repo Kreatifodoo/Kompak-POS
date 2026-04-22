@@ -35,7 +35,9 @@ class CartState {
     if (discountType == DiscountType.percentage) {
       return subtotal * (discountValue / 100);
     }
-    return discountValue;
+    // BUG-MULTI-005 FIX: Cap nominal discount to subtotal so stored
+    // discountAmount never exceeds the order total.
+    return discountValue > subtotal ? subtotal : discountValue;
   }
 
   /// Backward-compat: effective tax rate from PAJAK charges

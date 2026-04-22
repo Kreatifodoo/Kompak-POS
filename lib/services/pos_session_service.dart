@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 import '../core/database/app_database.dart';
 import '../models/session_report_model.dart';
@@ -28,6 +29,7 @@ class PosSessionService {
       cashierId: cashierId,
       terminalId: terminalId,
       openingCash: openingCash,
+      openedAt: Value(DateTime.now()), // device local time, not SQLite UTC default
     ));
     return id;
   }
@@ -55,17 +57,21 @@ class PosSessionService {
     final payments =
         await db.posSessionDao.getPaymentsForSessionOrders(sessionId);
 
-    // Aggregate totals
-    final totalOrders = orders.length;
+    // BUG-MULTI-002 FIX: Only count completed orders for revenue.
+    // Returned orders must not inflate session sales figures.
+    final completedOrders =
+        orders.where((o) => o.status == 'completed').toList();
+
+    final totalOrders = completedOrders.length;
     double totalSales = 0;
     double totalSubtotal = 0;
     double totalDiscounts = 0;
 
-    for (final order in orders) {
+    for (final order in completedOrders) {
       totalSales += order.total;
       totalSubtotal += order.subtotal;
       totalDiscounts += order.discountAmount;
-      // ISS-010: Include promotion discounts
+      // Include promotion discounts from promotionsJson
       if (order.promotionsJson != null) {
         try {
           final promos = jsonDecode(order.promotionsJson!) as List;
@@ -170,6 +176,17 @@ class PosSessionService {
 
   Future<List<PosSession>> getSessionHistory(String storeId) =>
       db.posSessionDao.getSessionsByStore(storeId);
+
+  Future<List<PosSession>> getSessionHistoryFiltered(
+    String storeId, {
+    String? terminalId,
+    List<String>? storeIds,
+  }) =>
+      db.posSessionDao.getSessionsFiltered(
+        storeId,
+        terminalId: terminalId,
+        storeIds: storeIds,
+      );
 
   Future<PosSession?> getSessionById(String id) =>
       db.posSessionDao.getSessionById(id);

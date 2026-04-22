@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/utils/extensions.dart';
 import '../../core/database/app_database.dart';
-import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/terminal/terminal_providers.dart';
 
@@ -17,13 +15,13 @@ class TerminalListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final storeId = ref.watch(currentStoreIdProvider);
+    final isHQ = ref.watch(isHQUserProvider);
+
     if (storeId == null) {
       return const Scaffold(
         body: Center(child: Text('No store selected')),
       );
     }
-
-    final terminalsAsync = ref.watch(terminalsProvider(storeId));
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldWhite,
@@ -42,80 +40,242 @@ class TerminalListScreen extends ConsumerWidget {
         onPressed: () => context.push('/settings/terminals/new'),
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
-      body: terminalsAsync.when(
-        data: (terminals) {
-          if (terminals.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.point_of_sale_outlined,
-                      size: 64,
-                      color: AppColors.textHint.withOpacity(0.3)),
-                  const SizedBox(height: AppSpacing.md),
-                  Text('Belum ada terminal',
-                      style: AppTextStyles.bodyLarge
-                          .copyWith(color: AppColors.textSecondary)),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text('Tap + untuk menambah terminal/mesin kasir',
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textHint)),
-                ],
-              ),
-            );
-          }
+      body: isHQ
+          ? _HQTerminalList(hqStoreId: storeId)
+          : _BranchTerminalList(storeId: storeId),
+    );
+  }
+}
 
-          return Column(
-            children: [
-              // Info banner
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(AppSpacing.md),
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.infoBlue.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.infoBlue.withOpacity(0.2),
-                  ),
+// ─────────────────────────────────────────────────────────────────────────────
+// Branch view: shows only that branch's terminals (existing behaviour)
+// ─────────────────────────────────────────────────────────────────────────────
+class _BranchTerminalList extends ConsumerWidget {
+  final String storeId;
+  const _BranchTerminalList({required this.storeId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final terminalsAsync = ref.watch(terminalsProvider(storeId));
+
+    return terminalsAsync.when(
+      data: (terminals) => _terminalListBody(context, terminals),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HQ view: shows terminals grouped by branch (STRUCT-002 fix)
+// ─────────────────────────────────────────────────────────────────────────────
+class _HQTerminalList extends ConsumerWidget {
+  final String hqStoreId;
+  const _HQTerminalList({required this.hqStoreId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentStore = ref.watch(currentStoreProvider);
+    final branchesAsync = ref.watch(branchesProvider);
+
+    return branchesAsync.when(
+      data: (branches) {
+        // All stores: HQ + branches
+        final allStores = [
+          if (currentStore != null) currentStore,
+          ...branches,
+        ];
+
+        return ListView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          children: [
+            // Info banner
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.infoBlue.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.infoBlue.withOpacity(0.2),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded,
-                        color: AppColors.infoBlue, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'Setiap terminal mewakili 1 mesin kasir. Assign user ke terminal di menu "Kelola Pengguna".',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.infoBlue,
-                        ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      color: AppColors.infoBlue, size: 20),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Tampilan HQ: semua terminal dari semua cabang. '
+                      'Tekan + untuk menambah terminal ke cabang tertentu.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.infoBlue,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              // Terminal list
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
                   ),
-                  itemCount: terminals.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) =>
-                      _TerminalCard(terminal: terminals[index]),
-                ),
+                ],
+              ),
+            ),
+
+            // Terminals grouped by store
+            for (final store in allStores)
+              _StoreTerminalGroup(
+                store: store,
+                isHQ: store.id == hqStoreId,
+              ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+    );
+  }
+}
+
+/// Shows terminals for a single store as a collapsible group.
+class _StoreTerminalGroup extends ConsumerWidget {
+  final Store store;
+  final bool isHQ;
+  const _StoreTerminalGroup({required this.store, required this.isHQ});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final terminalsAsync = ref.watch(terminalsProvider(store.id));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              Icon(
+                isHQ
+                    ? Icons.store_mall_directory_rounded
+                    : Icons.store_rounded,
+                size: 18,
+                color: isHQ ? AppColors.primaryOrange : Colors.teal,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                isHQ ? '${store.name} (HQ)' : store.name,
+                style: AppTextStyles.bodyMedium
+                    .copyWith(fontWeight: FontWeight.w700),
               ),
             ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+          ),
+        ),
+
+        terminalsAsync.when(
+          data: (terminals) {
+            if (terminals.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(
+                    left: AppSpacing.md, bottom: AppSpacing.md),
+                child: Text(
+                  'Belum ada terminal di cabang ini.',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textHint),
+                ),
+              );
+            }
+            return Column(
+              children: [
+                ...terminals.map((t) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _TerminalCard(terminal: t),
+                    )),
+              ],
+            );
+          },
+          loading: () =>
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.sm),
+                child: LinearProgressIndicator(),
+              ),
+          error: (e, _) => Text('Error: $e'),
+        ),
+
+        const Divider(height: AppSpacing.md),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+Widget _terminalListBody(BuildContext context, List<Terminal> terminals) {
+  if (terminals.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.point_of_sale_outlined,
+              size: 64,
+              color: AppColors.textHint.withOpacity(0.3)),
+          const SizedBox(height: AppSpacing.md),
+          Text('Belum ada terminal',
+              style: AppTextStyles.bodyLarge
+                  .copyWith(color: AppColors.textSecondary)),
+          const SizedBox(height: AppSpacing.xs),
+          Text('Tap + untuk menambah terminal/mesin kasir',
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textHint)),
+        ],
       ),
     );
   }
+
+  return Column(
+    children: [
+      // Info banner
+      Container(
+        width: double.infinity,
+        margin: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.infoBlue.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.infoBlue.withOpacity(0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded,
+                color: AppColors.infoBlue, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Setiap terminal mewakili 1 mesin kasir. Assign user ke terminal di menu "Kelola Pengguna".',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.infoBlue,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      // Terminal list
+      Expanded(
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+          ),
+          itemCount: terminals.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(height: AppSpacing.sm),
+          itemBuilder: (context, index) =>
+              _TerminalCard(terminal: terminals[index]),
+        ),
+      ),
+    ],
+  );
 }
 
 class _TerminalCard extends ConsumerWidget {

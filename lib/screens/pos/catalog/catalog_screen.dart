@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -10,9 +12,9 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/utils/extensions.dart';
 import '../../../core/database/app_database.dart';
 import '../../../models/cart_item_model.dart';
+import '../../../modules/core_providers.dart';
 import '../../../modules/product/product_providers.dart';
 import '../../../modules/pos/cart_providers.dart';
-import '../../../modules/core_providers.dart';
 import '../../../modules/pricelist/pricelist_providers.dart';
 import '../../../modules/auth/auth_providers.dart';
 import '../../../modules/pos_session/pos_session_providers.dart';
@@ -29,13 +31,126 @@ class CatalogScreen extends ConsumerStatefulWidget {
   ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
 }
 
-class _CatalogScreenState extends ConsumerState<CatalogScreen> {
+class _CatalogScreenState extends ConsumerState<CatalogScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
+
+  // ── Bluetooth HID scanner support ──────────────────────────────────────────
+  // BT scanners inject keyboard events very rapidly and end with Enter.
+  // We buffer the characters and process on Enter key.
+  final StringBuffer _btScanBuffer = StringBuffer();
+  DateTime _lastScanKeyTime = DateTime(2000);
+  static const _btScanTimeoutMs = 100; // chars < 100ms apart = scanner input
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
+    // Start Telegram chatbot polling if enabled
+    _startChatbotIfEnabled();
+    // Keep screen on so POS device stays active & bot keeps responding
+    WakelockPlus.enable();
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
     _searchController.dispose();
+    WakelockPlus.disable();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-enable wakelock (OS may have released it)
+      WakelockPlus.enable();
+      // Ensure chatbot polling is running
+      final chatbot = ref.read(telegramChatbotServiceProvider);
+      if (chatbot.isEnabled && !chatbot.isPolling) {
+        chatbot.startPolling();
+        chatbot.sendStatusNotification(online: true);
+      }
+    }
+    // NOTE: We intentionally do NOT stop polling on paused.
+    // The bot should keep responding even when screen is off / app backgrounded.
+  }
+
+  void _startChatbotIfEnabled() {
+    final chatbot = ref.read(telegramChatbotServiceProvider);
+    if (chatbot.isEnabled && !chatbot.isPolling) {
+      chatbot.startPolling();
+    }
+  }
+
+  bool _onHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    // Only intercept when no text field is explicitly focused (avoids stealing
+    // input from search bar, forms, dialogs, etc.)
+    final focusedWidget = FocusManager.instance.primaryFocus;
+    if (focusedWidget != null &&
+        focusedWidget.context != null &&
+        focusedWidget.context!.widget is EditableText) {
+      return false; // let normal text field handle it
+    }
+
+    final now = DateTime.now();
+    final gap = now.difference(_lastScanKeyTime).inMilliseconds;
+
+    // Enter key = end of scan sequence
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      final scanned = _btScanBuffer.toString().trim();
+      _btScanBuffer.clear();
+      if (scanned.isNotEmpty) {
+        _handleBtScanResult(scanned);
+        return true;
+      }
+      return false;
+    }
+
+    // If gap > timeout and buffer is non-empty, previous scan was incomplete — reset
+    if (gap > _btScanTimeoutMs * 5 && _btScanBuffer.isNotEmpty) {
+      _btScanBuffer.clear();
+    }
+
+    _lastScanKeyTime = now;
+
+    // Append printable characters only
+    final char = event.character;
+    if (char != null && char.isNotEmpty) {
+      _btScanBuffer.write(char);
+      return true; // consume the key event so it doesn't pollute the search bar
+    }
+
+    return false;
+  }
+
+  Future<void> _handleBtScanResult(String barcode) async {
+    try {
+      final service = ref.read(productServiceProvider);
+      final product = await service.findByBarcode(barcode);
+      if (!mounted) return;
+      if (product != null) {
+        final cartItem = CartItem(
+          productId: product.id,
+          productName: product.name,
+          productPrice: product.price,
+          quantity: 1,
+          lineTotal: product.price,
+          imageUrl: product.imageUrl,
+        );
+        ref.read(cartProvider.notifier).addItem(cartItem);
+        context.showSnackBar('${product.name} ditambahkan ke keranjang');
+      } else {
+        context.showSnackBar('Produk tidak ditemukan: $barcode', isError: true);
+      }
+    } catch (e) {
+      if (mounted) context.showSnackBar('Scan error: $e', isError: true);
+    }
   }
 
   @override
@@ -94,6 +209,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: AppColors.errorRed),
+            tooltip: 'Logout',
+            onPressed: () => _handleLogout(context, session),
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: AppColors.textSecondary),
             onPressed: () => context.push('/settings'),
@@ -758,6 +878,31 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
   }
 
+  Future<void> _handleLogout(BuildContext context, PosSession? session) async {
+    final user = ref.read(currentUserProvider);
+    if (user?.role == 'cashier' && session != null) {
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Sesi Masih Aktif'),
+          content: const Text(
+            'Tutup sesi kasir terlebih dahulu sebelum logout.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    await performLogout(ref);
+    if (context.mounted) context.go('/auth');
+  }
+
   Widget _buildDrawer(BuildContext context, PosSession? session) {
     return Drawer(
       child: SafeArea(
@@ -911,11 +1056,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               color: AppColors.errorRed,
               onTap: () async {
                 Navigator.pop(context);
-                ref.read(cartProvider.notifier).clearCart();
-                await ref.read(authServiceProvider).clearSession();
-                ref.read(currentUserProvider.notifier).state = null;
-                ref.read(currentStoreProvider.notifier).state = null;
-                ref.read(currentStoreIdProvider.notifier).state = null;
+                await performLogout(ref);
                 if (context.mounted) context.go('/auth');
               },
             ),

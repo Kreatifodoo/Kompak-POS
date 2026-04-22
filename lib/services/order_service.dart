@@ -27,11 +27,21 @@ class OrderService {
     final paymentId = _uuid.v4();
 
     return await db.transaction(() async {
+      // Resolve terminal code for order number prefix
+      final terminal = await db.terminalDao.getById(terminalId);
+      final terminalCode = terminal?.code;
+
       // Generate order number INSIDE the transaction to prevent race conditions
-      final datePrefix = Formatters.orderDatePrefix(AppConfig.orderPrefix);
+      final datePrefix = Formatters.orderDatePrefix(
+        AppConfig.orderPrefix,
+        terminalCode: terminalCode,
+      );
       final sequence = await db.orderDao.getNextOrderSequence(datePrefix);
-      final orderNumber =
-          Formatters.orderNumber(AppConfig.orderPrefix, sequence);
+      final orderNumber = Formatters.orderNumber(
+        AppConfig.orderPrefix,
+        sequence,
+        terminalCode: terminalCode,
+      );
 
       // Serialize charges to JSON for order storage
       final chargesJsonStr = cart.charges.isNotEmpty
@@ -60,6 +70,8 @@ class OrderService {
         chargesJson: Value(chargesJsonStr),
         promotionsJson: Value(promotionsJsonStr),
         total: cart.total,
+        createdAt: Value(DateTime.now()), // BUG-SIT-001 FIX: use device local time
+        completedAt: Value(DateTime.now()),
       ));
 
       // 2. Insert order items

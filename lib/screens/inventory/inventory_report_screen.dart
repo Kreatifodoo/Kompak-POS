@@ -11,6 +11,7 @@ import '../../modules/core_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/inventory/inventory_providers.dart';
 import '../../modules/orders/order_providers.dart';
+import '../../widgets/common/branch_filter_dropdown.dart';
 
 class InventoryReportScreen extends ConsumerWidget {
   const InventoryReportScreen({super.key});
@@ -32,7 +33,19 @@ class InventoryReportScreen extends ConsumerWidget {
         ),
         title: Text('Laporan Inventory', style: AppTextStyles.heading3),
       ),
-      body: inventoryAsync.when(
+      body: Column(
+        children: [
+          // Branch filter for HQ users
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            color: Colors.white,
+            child: const Row(
+              children: [BranchFilterDropdown()],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(child: inventoryAsync.when(
         data: (items) => ordersAsync.when(
           data: (orders) => _buildContent(context, ref, items, orders),
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -40,6 +53,8 @@ class InventoryReportScreen extends ConsumerWidget {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+      )),
+        ],
       ),
     );
   }

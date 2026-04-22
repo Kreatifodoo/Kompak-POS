@@ -3,11 +3,22 @@ import '../../core/database/app_database.dart';
 import '../core_providers.dart';
 import '../auth/auth_providers.dart';
 
+// selectedTerminalFilterProvider was moved to core_providers.dart to break the
+// circular import: auth_providers → order_providers → auth_providers.
+// Re-exported here so existing import sites don't need to change.
+export '../core_providers.dart' show selectedTerminalFilterProvider;
+
 final ordersProvider = StreamProvider<List<Order>>((ref) {
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) return Stream.value([]);
   final db = ref.watch(databaseProvider);
-  return db.orderDao.watchOrdersByStore(storeId);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
+  return db.orderDao.watchOrdersFiltered(
+    storeId,
+    terminalId: terminalId,
+    storeIds: storeIds,
+  );
 });
 
 final todayOrdersProvider = FutureProvider<List<Order>>((ref) async {
@@ -43,14 +54,26 @@ final todayOrderCountProvider = FutureProvider<int>((ref) async {
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) return 0;
   final db = ref.watch(databaseProvider);
-  return db.orderDao.getTodayOrderCount(storeId);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
+  return db.orderDao.getTodayOrderCountFiltered(
+    storeId,
+    terminalId: terminalId,
+    storeIds: storeIds,
+  );
 });
 
 final todayRevenueProvider = FutureProvider<double>((ref) async {
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) return 0;
   final db = ref.watch(databaseProvider);
-  return db.orderDao.getTodayRevenue(storeId);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
+  return db.orderDao.getTodayRevenueFiltered(
+    storeId,
+    terminalId: terminalId,
+    storeIds: storeIds,
+  );
 });
 
 /// Orders for a specific customer (transaction history)
@@ -75,8 +98,16 @@ final last7DaysOrdersProvider = FutureProvider<List<Order>>((ref) async {
   final storeId = ref.watch(currentStoreIdProvider);
   if (storeId == null) return [];
   final db = ref.watch(databaseProvider);
+  final terminalId = ref.watch(selectedTerminalFilterProvider);
+  final storeIds = ref.watch(effectiveStoreIdsProvider).valueOrNull;
   final now = DateTime.now();
   final start = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
   final end = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
-  return db.orderDao.getOrdersByDateRange(storeId, start, end);
+  return db.orderDao.getOrdersForAnalyticsFiltered(
+    storeId,
+    start,
+    end,
+    terminalId: terminalId,
+    storeIds: storeIds,
+  );
 });

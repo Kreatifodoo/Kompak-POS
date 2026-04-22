@@ -203,10 +203,16 @@ class CartService {
       if (state.discountType == DiscountType.percentage) {
         discountAmount = subtotal * (state.discountValue / 100);
       } else {
-        discountAmount = state.discountValue;
+        // BUG-MULTI-005 FIX: Cap nominal discount to subtotal.
+        // Without this, afterDiscount goes negative → charges computed on a
+        // negative base → negative chargesTotal and inconsistent order data.
+        discountAmount = state.discountValue > subtotal
+            ? subtotal
+            : state.discountValue;
       }
     }
 
+    // afterDiscount is always >= 0 (percentage can never exceed 100%)
     final afterDiscount = subtotal - discountAmount;
 
     // 2. Promotions (after manual discount, before charges)

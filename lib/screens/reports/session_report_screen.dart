@@ -13,6 +13,8 @@ import '../../modules/core_providers.dart';
 import '../../modules/pos_session/pos_session_providers.dart';
 import '../../modules/auth/auth_providers.dart';
 import '../../modules/printer/printer_providers.dart';
+import '../../widgets/common/terminal_filter_dropdown.dart';
+import '../../widgets/common/branch_filter_dropdown.dart';
 
 /// Session report list screen
 class SessionReportListScreen extends ConsumerWidget {
@@ -34,7 +36,23 @@ class SessionReportListScreen extends ConsumerWidget {
         ),
         title: Text('Laporan Session', style: AppTextStyles.heading3),
       ),
-      body: historyAsync.when(
+      body: Column(
+        children: [
+          // Terminal & branch filter
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            color: Colors.white,
+            child: const Row(
+              children: [
+                BranchFilterDropdown(),
+                SizedBox(width: 8),
+                TerminalFilterDropdown(),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(child: historyAsync.when(
         data: (sessions) {
           if (sessions.isEmpty) {
             return Center(
@@ -68,6 +86,8 @@ class SessionReportListScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+      )),
+        ],
       ),
     );
   }

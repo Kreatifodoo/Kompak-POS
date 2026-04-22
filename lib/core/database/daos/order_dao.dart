@@ -168,6 +168,109 @@ class OrderDao extends DatabaseAccessor<AppDatabase> with _$OrderDaoMixin {
             ..orderBy([(o) => OrderingTerm.desc(o.createdAt)]))
           .get();
 
+  // ── Filtered query methods (terminal + multi-branch) ──
+
+  /// Helper to build store filter expression
+  Expression<bool> _storeFilter(
+    GeneratedColumn<String> col,
+    String storeId, {
+    List<String>? storeIds,
+  }) {
+    if (storeIds != null && storeIds.isNotEmpty) {
+      return col.isIn(storeIds);
+    }
+    return col.equals(storeId);
+  }
+
+  /// Watch orders with optional terminal + multi-branch filter
+  Stream<List<Order>> watchOrdersFiltered(
+    String storeId, {
+    String? terminalId,
+    List<String>? storeIds,
+  }) {
+    return (select(orders)
+          ..where((o) {
+            var expr = _storeFilter(o.storeId, storeId, storeIds: storeIds);
+            if (terminalId != null) {
+              expr = expr & o.terminalId.equals(terminalId);
+            }
+            return expr;
+          })
+          ..orderBy([(o) => OrderingTerm.desc(o.createdAt)]))
+        .watch();
+  }
+
+  /// Analytics orders with optional terminal + multi-branch filter
+  Future<List<Order>> getOrdersForAnalyticsFiltered(
+    String storeId,
+    DateTime start,
+    DateTime end, {
+    String? terminalId,
+    List<String>? storeIds,
+  }) {
+    return (select(orders)
+          ..where((o) {
+            var expr = _storeFilter(o.storeId, storeId, storeIds: storeIds) &
+                o.status.isIn(['completed', 'returned']) &
+                o.createdAt.isBiggerOrEqualValue(start) &
+                o.createdAt.isSmallerThanValue(end);
+            if (terminalId != null) {
+              expr = expr & o.terminalId.equals(terminalId);
+            }
+            return expr;
+          })
+          ..orderBy([(o) => OrderingTerm.desc(o.createdAt)]))
+        .get();
+  }
+
+  /// Today order count with optional terminal filter
+  Future<int> getTodayOrderCountFiltered(
+    String storeId, {
+    String? terminalId,
+    List<String>? storeIds,
+  }) async {
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day);
+    final result = await (select(orders)
+          ..where((o) {
+            var expr = _storeFilter(o.storeId, storeId, storeIds: storeIds) &
+                o.createdAt.isBiggerOrEqualValue(start) &
+                o.status.equals('completed');
+            if (terminalId != null) {
+              expr = expr & o.terminalId.equals(terminalId);
+            }
+            return expr;
+          }))
+        .get();
+    return result.length;
+  }
+
+  /// Today revenue with optional terminal filter
+  Future<double> getTodayRevenueFiltered(
+    String storeId, {
+    String? terminalId,
+    List<String>? storeIds,
+  }) async {
+    final today = DateTime.now();
+    final start = DateTime(today.year, today.month, today.day);
+    final result = await (select(orders)
+          ..where((o) {
+            var expr = _storeFilter(o.storeId, storeId, storeIds: storeIds) &
+                o.createdAt.isBiggerOrEqualValue(start) &
+                o.status.equals('completed');
+            if (terminalId != null) {
+              expr = expr & o.terminalId.equals(terminalId);
+            }
+            return expr;
+          }))
+        .get();
+    double total = 0;
+    for (final o in result) {
+      total += o.total;
+    }
+    return total;
+  }
+
   /// Calculate total COGS (Cost of Goods Sold / HPP) for a list of order IDs.
   /// Uses costPrice stored in order_items. Falls back to product table costPrice
   /// for older orders that don't have costPrice in order_items.
